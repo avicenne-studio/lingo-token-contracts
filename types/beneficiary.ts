@@ -1,4 +1,4 @@
-export enum BeneficiaryType {
+export enum Beneficiary {
     PreSeed,
     KOLRound,
     PrivateSale,

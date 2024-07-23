@@ -9,7 +9,7 @@ import "./LingoToken.sol";
 contract TokenVesting is Ownable {
     using MerkleProof for bytes32[];
 
-    enum BeneficiaryType {
+    enum Beneficiary {
         PreSeed,
         KOLRound,
         PrivateSale,
@@ -21,17 +21,17 @@ contract TokenVesting is Ownable {
     }
 
     struct VestingSchedule {
-        uint256 totalAllocation;
-        uint256 unlockedAtStart;
-        uint256 cliffDuration;
-        uint256 vestingDuration;
+        uint128 totalAllocation;
+        uint128 unlockedAtStart;
+        uint128 cliffDuration;
+        uint128 vestingDuration;
     }
 
     LingoToken public token;
     bytes32 public merkleRoot;
 
-    mapping(BeneficiaryType => VestingSchedule) public vestingSchedules;
-    mapping(address => BeneficiaryType) public beneficiaryTypes;
+    mapping(Beneficiary => VestingSchedule) public vestingSchedules;
+    mapping(address => Beneficiary) public beneficiaryTypes;
 
     mapping(address => uint256) public claimedTokens;
     mapping(address => uint256) public lastClaimTime;
@@ -42,7 +42,7 @@ contract TokenVesting is Ownable {
         token = LingoToken(_tokenAddress);
 
         for (uint256 i = 0; i < _vestingSchedules.length; i++) {
-            vestingSchedules[BeneficiaryType(i)] = _vestingSchedules[i];
+            vestingSchedules[Beneficiary(i)] = _vestingSchedules[i];
         }
     }
 
@@ -50,9 +50,9 @@ contract TokenVesting is Ownable {
         merkleRoot = _merkleRoot;
     }
 
-    function claimTokens(bytes32[] calldata _merkleProof, BeneficiaryType _beneficiaryType) external {
+    function claimTokens(bytes32[] calldata _merkleProof, Beneficiary _beneficiaryType) external {
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender, _beneficiaryType))));
-        require(verifyProof(_merkleProof, leaf), "Invalid Merkle proof");
+        require(_verifyProof(_merkleProof, leaf), "Invalid Merkle proof");
 
         uint256 claimableToken = claimableTokenOf(msg.sender);
         token.mint(msg.sender, claimableToken);
@@ -65,7 +65,7 @@ contract TokenVesting is Ownable {
         return 10*10**18;
     }
 
-    function verifyProof(bytes32[] calldata _proof, bytes32 _leaf) private view returns (bool) {
+    function _verifyProof(bytes32[] calldata _proof, bytes32 _leaf) private view returns (bool) {
         return _proof.verify(merkleRoot, _leaf);
     }
 }

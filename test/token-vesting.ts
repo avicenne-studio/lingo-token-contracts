@@ -7,7 +7,7 @@ import hre from "hardhat";
 import {getAddress} from "viem";
 import {getAllocations} from "../utils/get-allocations";
 import {getMerkleProof, getMerkleTree} from "../utils/merkle-tree";
-import {BeneficiaryType} from "../types/beneficiary-type";
+import {Beneficiary} from "../types/beneficiary";
 
 describe("TokenVesting", function () {
         // We define a fixture to reuse the same setup in every test.
@@ -76,7 +76,7 @@ describe("TokenVesting", function () {
 
             const values = accounts.map((account, i) => [account.account.address, i]);
 
-            const tokenVestingAs = (beneficiary: BeneficiaryType) => {
+            const tokenVestingAs = (beneficiary: Beneficiary) => {
                 return hre.viem.getContractAt(
                     "TokenVesting",
                     tokenVesting.address,
@@ -113,14 +113,35 @@ describe("TokenVesting", function () {
         });
 
         describe("Merkle Tree", function () {
-            it("Should generate the Merkle Tree", async function () {
-                const {tokenVestingAs, preSeedUser, tree} = await loadFixture(deployAndInitializeFixture);
-
-                const tokenVestingAsPreSeed = await tokenVestingAs(BeneficiaryType.PreSeed);
+            it("Should validate the Merkle Proof if the Proof is valid", async function () {
+                const {preSeedUser, tree} = await loadFixture(deployAndInitializeFixture);
 
                 const proof = getMerkleProof(tree, preSeedUser.account.address);
 
-                await tokenVestingAsPreSeed.write.claimTokens([proof, BeneficiaryType.PreSeed]);
+                expect(tree.verify([preSeedUser.account.address, Beneficiary.PreSeed], proof)).to.be.true;
+            });
+
+            it("Should NOT validate the Merkle Proof if the Proof is valid", async function () {
+                const {preSeedUser, tree} = await loadFixture(deployAndInitializeFixture);
+                const proof = getMerkleProof(tree, preSeedUser.account.address);
+
+                expect(tree.verify([preSeedUser.account.address, Beneficiary.Ambassadors], proof)).to.be.false;
+            });
+
+
+            it("Should claim token if Merkle Proof is valid", async function () {
+                const {tokenVestingAs, lingoToken, preSeedUser, tree} = await loadFixture(deployAndInitializeFixture);
+                const tokenVestingAsPreSeed = await tokenVestingAs(Beneficiary.PreSeed);
+
+                const preSeedUserAddress = preSeedUser.account.address;
+
+                const proof = getMerkleProof(tree, preSeedUserAddress);
+
+                await tokenVestingAsPreSeed.write.claimTokens([proof, Beneficiary.PreSeed]);
+
+                const preSeedUserBalance = await lingoToken.read.balanceOf([preSeedUserAddress]);
+
+                expect(preSeedUserBalance).to.equal(10n * 10n ** 18n);
             });
         });
 
@@ -132,18 +153,22 @@ describe("TokenVesting", function () {
 
                 await time.increaseTo(unlockTime);
 
-                const tokenVestingAsPreSeed = await tokenVestingAs(BeneficiaryType.PreSeed);
+                const preSeedUserAddress = preSeedUser.account.address;
 
-                const proof = getMerkleProof(tree, preSeedUser.account.address);
+                const tokenVestingAsPreSeed = await tokenVestingAs(Beneficiary.PreSeed);
 
-                await tokenVestingAsPreSeed.write.claimTokens([proof, BeneficiaryType.PreSeed]);
+                const proof = getMerkleProof(tree, preSeedUserAddress);
 
-                const hash = await tokenVestingAsPreSeed.write.claimTokens([proof, BeneficiaryType.PreSeed]);
+                await tokenVestingAsPreSeed.write.claimTokens([proof, Beneficiary.PreSeed]);
+
+                const hash = await tokenVestingAsPreSeed.write.claimTokens([proof, Beneficiary.PreSeed]);
                 await publicClient.waitForTransactionReceipt({hash});
 
                 // get the withdrawal events in the latest block
                 const withdrawalEvents = await tokenVestingAsPreSeed.getEvents.TokensReleased();
+
                 expect(withdrawalEvents).to.have.lengthOf(1);
+                expect(withdrawalEvents[0].args.beneficiary?.toLowerCase()).to.equal(preSeedUserAddress);
                 expect(withdrawalEvents[0].args.amount).to.equal(10n * 10n ** 18n);
             });
         });
