@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "./LingoToken.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {LingoToken} from "./LingoToken.sol";
 
 contract TokenVesting is Ownable {
     using MerkleProof for bytes32[];
@@ -38,7 +37,11 @@ contract TokenVesting is Ownable {
 
     event TokensReleased(address beneficiary, uint256 amount);
 
-    constructor(address _initialOwner, address _tokenAddress, VestingSchedule[] memory _vestingSchedules) Ownable(_initialOwner) {
+    constructor(
+        address _initialOwner,
+        address _tokenAddress,
+        VestingSchedule[] memory _vestingSchedules
+    ) Ownable(_initialOwner) {
         token = LingoToken(_tokenAddress);
 
         for (uint256 i = 0; i < _vestingSchedules.length; i++) {
@@ -50,8 +53,13 @@ contract TokenVesting is Ownable {
         merkleRoot = _merkleRoot;
     }
 
-    function claimTokens(bytes32[] calldata _merkleProof, Beneficiary _beneficiaryType) external {
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender, _beneficiaryType))));
+    function claimTokens(
+        bytes32[] calldata _merkleProof,
+        Beneficiary _beneficiaryType
+    ) external {
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(msg.sender, _beneficiaryType)))
+        );
         require(_verifyProof(_merkleProof, leaf), "Invalid Merkle proof");
 
         uint256 claimableToken = claimableTokenOf(msg.sender);
@@ -62,10 +70,13 @@ contract TokenVesting is Ownable {
 
     function claimableTokenOf(address _user) public view returns (uint256) {
         // compute claimable token of _user
-        return 10*10**18;
+        return 10 * 10 ** 18;
     }
 
-    function _verifyProof(bytes32[] calldata _proof, bytes32 _leaf) private view returns (bool) {
+    function _verifyProof(
+        bytes32[] calldata _proof,
+        bytes32 _leaf
+    ) private view returns (bool) {
         return _proof.verify(merkleRoot, _leaf);
     }
 }
