@@ -6,15 +6,18 @@ pragma solidity 0.8.20;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @author Accubits
  * @title LINGO
  * @dev Implements a custom ERC20 token.
  */
-contract LingoToken is ERC20Burnable, Ownable {
+contract LingoToken is ERC20Burnable, AccessControl {
 
     // Constants
+
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER");
 
     // The max supply of token ever available in circulation
     uint256 private constant MAX_SUPPLY = 1_000_000_000 * (10 ** 18);
@@ -61,16 +64,20 @@ contract LingoToken is ERC20Burnable, Ownable {
     /**
      * @dev Constructor function to initialize values when the contract is created.
    * @param _initialSupply An unsigned integer representing the initial total supply of tokens for the contract.
-   * @param _owner An address representing the owner of the contract.
    * @param _treasuryAddress An address representing the treasury wallet address.
    * @param _txnFee An unsigned integer representing the percentage transfer fee associated with each token transfer.
    */
     constructor(
         uint256 _initialSupply,
         address _treasuryAddress,
-        uint256 _txnFee,
-        address _owner
-    ) ERC20("Lingo", "LINGO") Ownable(_owner) {
+        uint256 _txnFee
+    ) ERC20("Lingo", "LINGO") {
+        /**
+         * The ownership of the contract is granted to the specified owner address.
+         * This provides full control over the contract to the owner.
+         */
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+
         /**
          * Here, we set the treasury wallet address to the specified value.
          * This address will be used to receive the transfer fee from every token transfer.
@@ -88,7 +95,7 @@ contract LingoToken is ERC20Burnable, Ownable {
          */
         uint256 intialTokenSupply = _initialSupply * (10 ** decimals());
         require(intialTokenSupply <= MAX_SUPPLY, 'LINGO: cap exceeded');
-        _mint(_owner, intialTokenSupply);
+        _mint(_msgSender(), intialTokenSupply);
 
         /**
          * In the next line, we set the transfer fee percentage for the token transfers.
@@ -96,12 +103,6 @@ contract LingoToken is ERC20Burnable, Ownable {
          * and added to the treasury wallet.
          */
         setTransferFee(_txnFee);
-
-        /**
-         * The ownership of the contract is transferred to the specified owner address.
-         * This provides full control over the contract to the owner.
-         */
-        _transferOwnership(_owner);
 
         /**
          * In the final line, we set up the default whitelist.
@@ -117,7 +118,7 @@ contract LingoToken is ERC20Burnable, Ownable {
    * @param account The wallet address of the treasury.
    * @notice Function can only be called by contract owner.
    */
-    function setTreasuryWalletAddress(address account) external onlyOwner {
+    function setTreasuryWalletAddress(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         /// The treasury wallet address cannot be zero-address.
         require(account != address(0), 'LINGO: Zero Address');
         _treasuryWallet = account;
@@ -133,7 +134,7 @@ contract LingoToken is ERC20Burnable, Ownable {
     function removeFromWhiteList(
         bool isInternal,
         address[] memory users
-    ) external onlyOwner returns (bool isUserRemoved) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool isUserRemoved) {
         isUserRemoved = _removeFromWhiteList(isInternal, users);
     }
 
@@ -142,7 +143,7 @@ contract LingoToken is ERC20Burnable, Ownable {
    * @param to The address to mint the tokens to.
    * @param amount The amount of tokens to mint.
    */
-    function mint(address to, uint256 amount) external onlyOwner {
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         require(totalSupply() + amount <= MAX_SUPPLY, 'LINGO: cap exceeded');
         _mint(to, amount);
     }
@@ -195,7 +196,7 @@ contract LingoToken is ERC20Burnable, Ownable {
    * @param fee transfer fee in percentage.Eg: 5% as 500.
    * @notice Function can only be called by contract owner.
    */
-    function setTransferFee(uint256 fee) public onlyOwner {
+    function setTransferFee(uint256 fee) public onlyRole(DEFAULT_ADMIN_ROLE) {
         /// Require the fee to be less than or equal to 5%.
         require(fee <= FIVE_PERCENT, 'LINGO: Transfer Fee should be between 0% - 5%');
         _transferFee = fee;
@@ -250,7 +251,7 @@ contract LingoToken is ERC20Burnable, Ownable {
    * @param isInternal The type of whitelist to remove from True if internal False if external
    * @param users The addresses to be added.
    */
-    function addToWhiteList(bool isInternal, address[] memory users) public onlyOwner {
+    function addToWhiteList(bool isInternal, address[] memory users) public onlyRole(DEFAULT_ADMIN_ROLE) {
         for (uint i = 0; i < users.length; i++) {
             /// Check if address is already whitelisted
             if (_isAddressWhiteListed[users[i]][isInternal] > 0) continue;
@@ -318,7 +319,7 @@ contract LingoToken is ERC20Burnable, Ownable {
    */
     function _setDefaultWhitelist() internal {
         address[] memory defaultWhiteListedAddresses = new address[](3);
-        defaultWhiteListedAddresses[0] = owner();
+        defaultWhiteListedAddresses[0] = _msgSender();
         defaultWhiteListedAddresses[1] = address(this);
         defaultWhiteListedAddresses[2] = _treasuryWallet;
 

@@ -33,9 +33,13 @@ describe("TokenVesting", function () {
             ] = await hre.viem.getWalletClients();
 
 
-            const lingoToken = await hre.viem.deployContract("LingoToken", [INITIAL_SUPPLY, treasuryWallet.account.address, FEES, owner.account.address]);
+            const lingoToken = await hre.viem.deployContract("LingoToken", [INITIAL_SUPPLY, treasuryWallet.account.address, FEES]);
 
             const tokenVesting = await hre.viem.deployContract("TokenVesting", [owner.account.address, lingoToken.address, getAllocations(TOTAL_SUPPLY)]);
+
+            const MINTER_ROLE = await lingoToken.read.MINTER_ROLE();
+
+            await lingoToken.write.grantRole([MINTER_ROLE, tokenVesting.address]);
 
             const publicClient = await hre.viem.getPublicClient();
 
@@ -121,7 +125,7 @@ describe("TokenVesting", function () {
         });
 
         describe("Events", function () {
-            it("Should emit an event on withdrawals", async function () {
+            it("Should emit an event on Token Releases", async function () {
                 const {tokenVestingAs, tree, preSeedUser, publicClient} = await loadFixture(deployAndInitializeFixture);
 
                 const unlockTime = BigInt(await time.latest()) + 1000n;
@@ -140,7 +144,7 @@ describe("TokenVesting", function () {
                 // get the withdrawal events in the latest block
                 const withdrawalEvents = await tokenVestingAsPreSeed.getEvents.TokensReleased();
                 expect(withdrawalEvents).to.have.lengthOf(1);
-                expect(withdrawalEvents[0].args.amount).to.equal(100n);
+                expect(withdrawalEvents[0].args.amount).to.equal(10n * 10n ** 18n);
             });
         });
     }
