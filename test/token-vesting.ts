@@ -1,177 +1,241 @@
 import {
-    time,
-    loadFixture,
+  loadFixture,
+  mine,
+  time,
 } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
-import {expect} from "chai";
+import { expect } from "chai";
 import hre from "hardhat";
-import {getAddress} from "viem";
-import {getAllocations} from "../utils/get-allocations";
-import {getMerkleProof, getMerkleTree} from "../utils/merkle-tree";
-import {Beneficiary} from "../types/beneficiary";
+import { getAddress } from "viem";
+import { VESTING_SCHEDULES, MONTH } from "../constants/vesting-schedules";
+import { getMerkleProof, getMerkleTree } from "../utils/merkle-tree";
+import { Beneficiary } from "../types/beneficiary";
 
 describe("TokenVesting", function () {
-        // We define a fixture to reuse the same setup in every test.
-        // We use loadFixture to run this setup once, snapshot that state,
-        // and reset Hardhat Network to that snapshot in every test.
-        async function deployFixture() {
-            const INITIAL_SUPPLY = BigInt(1_000n);
-            const TOTAL_SUPPLY = BigInt(1_000_000_000n * (10n ** 18n));
-            const FEES = BigInt(500n);
+  // We define a fixture to reuse the same setup in every test.
+  // We use loadFixture to run this setup once, snapshot that state,
+  // and reset Hardhat Network to that snapshot in every test.
+  async function deployFixture() {
+    const INITIAL_SUPPLY = BigInt(1_000n);
+    const TOTAL_SUPPLY = BigInt(1_000_000_000n * 10n ** 18n);
+    const FEES = BigInt(500n);
 
-            // Contracts are deployed using the first signer/account by default
-            const [
-                owner,
-                preSeedUser,
-                kolRoundUser,
-                privateSaleUser,
-                publicSaleUser,
-                socialFiAirdropUser,
-                strategicPartnersUser,
-                ambassadorsUser,
-                teamUser,
-                treasuryWallet,
-            ] = await hre.viem.getWalletClients();
+    // Contracts are deployed using the first signer/account by default
+    const [
+      owner,
+      preSeedUser,
+      kolRoundUser,
+      privateSaleUser,
+      publicSaleUser,
+      socialFiAirdropUser,
+      strategicPartnersUser,
+      ambassadorsUser,
+      teamUser,
+      treasuryWallet,
+    ] = await hre.viem.getWalletClients();
 
+    const lingoToken = await hre.viem.deployContract("LingoToken", [
+      INITIAL_SUPPLY,
+      treasuryWallet.account.address,
+      FEES,
+    ]);
 
-            const lingoToken = await hre.viem.deployContract("LingoToken", [INITIAL_SUPPLY, treasuryWallet.account.address, FEES]);
+    const LAST_BLOCK = await time.latestBlock();
 
-            const tokenVesting = await hre.viem.deployContract("TokenVesting", [owner.account.address, lingoToken.address, getAllocations(TOTAL_SUPPLY)]);
+    const tokenVesting = await hre.viem.deployContract("TokenVesting", [
+      owner.account.address,
+      lingoToken.address,
+      VESTING_SCHEDULES,
+      LAST_BLOCK,
+    ]);
 
-            const MINTER_ROLE = await lingoToken.read.MINTER_ROLE();
+    const MINTER_ROLE = await lingoToken.read.MINTER_ROLE();
 
-            await lingoToken.write.grantRole([MINTER_ROLE, tokenVesting.address]);
+    await lingoToken.write.grantRole([MINTER_ROLE, tokenVesting.address]);
 
-            const publicClient = await hre.viem.getPublicClient();
+    const publicClient = await hre.viem.getPublicClient();
 
-            return {
-                lingoToken,
-                tokenVesting,
-                TOTAL_SUPPLY,
-                owner,
-                preSeedUser,
-                kolRoundUser,
-                privateSaleUser,
-                publicSaleUser,
-                socialFiAirdropUser,
-                strategicPartnersUser,
-                ambassadorsUser,
-                teamUser,
-                publicClient,
-            };
-        }
+    return {
+      lingoToken,
+      tokenVesting,
+      TOTAL_SUPPLY,
+      owner,
+      preSeedUser,
+      kolRoundUser,
+      privateSaleUser,
+      publicSaleUser,
+      socialFiAirdropUser,
+      strategicPartnersUser,
+      ambassadorsUser,
+      teamUser,
+      publicClient,
+    };
+  }
 
-        async function deployAndInitializeFixture() {
-            const {tokenVesting, ...fixture} = await loadFixture(deployFixture);
+  async function deployAndInitializeFixture() {
+    const { tokenVesting, ...fixture } = await loadFixture(deployFixture);
 
-            const accounts = [
-                fixture.preSeedUser,
-                fixture.kolRoundUser,
-                fixture.privateSaleUser,
-                fixture.publicSaleUser,
-                fixture.socialFiAirdropUser,
-                fixture.strategicPartnersUser,
-                fixture.ambassadorsUser,
-                fixture.teamUser,
-            ];
+    const ALLOCATION_AMOUNT = BigInt(1_000n * 10n ** 18n);
 
-            const values = accounts.map((account, i) => [account.account.address, i]);
+    const accounts = [
+      fixture.preSeedUser,
+      fixture.kolRoundUser,
+      fixture.privateSaleUser,
+      fixture.publicSaleUser,
+      fixture.socialFiAirdropUser,
+      fixture.strategicPartnersUser,
+      fixture.ambassadorsUser,
+      fixture.teamUser,
+    ];
 
-            const tokenVestingAs = (beneficiary: Beneficiary) => {
-                return hre.viem.getContractAt(
-                    "TokenVesting",
-                    tokenVesting.address,
-                    {client: {wallet: accounts[beneficiary]}}
-                );
-            };
+    const values = accounts.map((account, i) => [
+      account.account.address,
+      i,
+      ALLOCATION_AMOUNT * BigInt(i + 1),
+    ]);
 
-            const tree = getMerkleTree(values);
+    const tokenVestingAs = (beneficiary: Beneficiary) => {
+      return hre.viem.getContractAt("TokenVesting", tokenVesting.address, {
+        client: { wallet: accounts[beneficiary] },
+      });
+    };
 
-            const merkleProofs = values.map((user) => getMerkleProof(tree, user[0] as `0x${string}`));
+    const tree = getMerkleTree(values);
 
-            await tokenVesting.write.setMerkleRoot([tree.root as `0x${string}`]);
+    const merkleProofs = values.map((user) =>
+      getMerkleProof(tree, user[0] as `0x${string}`),
+    );
 
-            return {tokenVesting, tokenVestingAs, ...fixture, tree, merkleProofs};
-        }
+    await tokenVesting.write.setMerkleRoot([tree.root as `0x${string}`]);
 
-        describe("Deployment", function () {
-            it("Should set the right Allocations", async function () {
-                const {tokenVesting, TOTAL_SUPPLY} = await loadFixture(deployFixture);
-                const allocations = getAllocations(TOTAL_SUPPLY);
+    return {
+      tokenVesting,
+      tokenVestingAs,
+      ...fixture,
+      tree,
+      merkleProofs,
+      ALLOCATION_AMOUNT,
+    };
+  }
 
-                for (let i = 0; i < allocations.length; i++) {
-                    expect(await tokenVesting.read.vestingSchedules([i])).to.deep.equal(Object.values(allocations[i]));
-                }
-            });
+  describe("Deployment", function () {
+    it("Should set the right Allocations", async function () {
+      const { tokenVesting } = await loadFixture(deployFixture);
 
-            it("Should set the right owner", async function () {
-                const {tokenVesting, owner} = await loadFixture(deployFixture);
+      for (let i = 0; i < VESTING_SCHEDULES.length; i++) {
+        expect(await tokenVesting.read.vestingSchedules([i])).to.deep.equal(
+          Object.values(VESTING_SCHEDULES[i]),
+        );
+      }
+    });
 
-                expect(await tokenVesting.read.owner()).to.equal(
-                    getAddress(owner.account.address)
-                );
-            });
-        });
+    it("Should set the right owner", async function () {
+      const { tokenVesting, owner } = await loadFixture(deployFixture);
 
-        describe("Merkle Tree", function () {
-            it("Should validate the Merkle Proof if the Proof is valid", async function () {
-                const {preSeedUser, tree} = await loadFixture(deployAndInitializeFixture);
+      expect(await tokenVesting.read.owner()).to.equal(
+        getAddress(owner.account.address),
+      );
+    });
+  });
 
-                const proof = getMerkleProof(tree, preSeedUser.account.address);
+  describe("Merkle Tree", function () {
+    it("Should validate the Merkle Proof if the Proof is valid", async function () {
+      const { preSeedUser, tree, ALLOCATION_AMOUNT } = await loadFixture(
+        deployAndInitializeFixture,
+      );
 
-                expect(tree.verify([preSeedUser.account.address, Beneficiary.PreSeed], proof)).to.be.true;
-            });
+      const proof = getMerkleProof(tree, preSeedUser.account.address);
 
-            it("Should NOT validate the Merkle Proof if the Proof is valid", async function () {
-                const {preSeedUser, tree} = await loadFixture(deployAndInitializeFixture);
-                const proof = getMerkleProof(tree, preSeedUser.account.address);
+      const leaf = [
+        preSeedUser.account.address,
+        Beneficiary.PreSeed,
+        BigInt(Beneficiary.PreSeed + 1) * ALLOCATION_AMOUNT,
+      ];
 
-                expect(tree.verify([preSeedUser.account.address, Beneficiary.Ambassadors], proof)).to.be.false;
-            });
+      expect(tree.verify(leaf, proof)).to.be.true;
+    });
 
+    it("Should NOT validate the Merkle Proof if the Proof is valid", async function () {
+      const { preSeedUser, tree, ALLOCATION_AMOUNT } = await loadFixture(
+        deployAndInitializeFixture,
+      );
+      const proof = getMerkleProof(tree, preSeedUser.account.address);
 
-            it("Should claim token if Merkle Proof is valid", async function () {
-                const {tokenVestingAs, lingoToken, preSeedUser, tree} = await loadFixture(deployAndInitializeFixture);
-                const tokenVestingAsPreSeed = await tokenVestingAs(Beneficiary.PreSeed);
+      const leaf = [
+        preSeedUser.account.address,
+        Beneficiary.PreSeed,
+        BigInt(Beneficiary.Ambassadors) * ALLOCATION_AMOUNT,
+      ];
 
-                const preSeedUserAddress = preSeedUser.account.address;
+      expect(tree.verify(leaf, proof)).to.be.false;
+    });
 
-                const proof = getMerkleProof(tree, preSeedUserAddress);
+    it("Should claim token if Merkle Proof is valid", async function () {
+      const {
+        tokenVestingAs,
+        lingoToken,
+        preSeedUser,
+        tree,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsPreSeed = await tokenVestingAs(Beneficiary.PreSeed);
 
-                await tokenVestingAsPreSeed.write.claimTokens([proof, Beneficiary.PreSeed]);
+      const preSeedUserAddress = preSeedUser.account.address;
 
-                const preSeedUserBalance = await lingoToken.read.balanceOf([preSeedUserAddress]);
+      const proof = getMerkleProof(tree, preSeedUserAddress);
 
-                expect(preSeedUserBalance).to.equal(10n * 10n ** 18n);
-            });
-        });
+      const allocation = BigInt(Beneficiary.PreSeed + 1) * ALLOCATION_AMOUNT;
 
-        describe("Events", function () {
-            it("Should emit an event on Token Releases", async function () {
-                const {tokenVestingAs, tree, preSeedUser, publicClient} = await loadFixture(deployAndInitializeFixture);
+      await mine(20n * MONTH);
 
-                const unlockTime = BigInt(await time.latest()) + 1000n;
+      await tokenVestingAsPreSeed.write.claimTokens([
+        proof,
+        Beneficiary.PreSeed,
+        allocation,
+      ]);
 
-                await time.increaseTo(unlockTime);
+      const preSeedUserBalance = await lingoToken.read.balanceOf([
+        preSeedUserAddress,
+      ]);
 
-                const preSeedUserAddress = preSeedUser.account.address;
+      expect(preSeedUserBalance).to.equal(allocation);
+    });
+  });
 
-                const tokenVestingAsPreSeed = await tokenVestingAs(Beneficiary.PreSeed);
+  describe("Events", function () {
+    it("Should emit an event on Token Releases", async function () {
+      const {
+        tokenVestingAs,
+        tree,
+        preSeedUser,
+        publicClient,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsPreSeed = await tokenVestingAs(Beneficiary.PreSeed);
 
-                const proof = getMerkleProof(tree, preSeedUserAddress);
+      const preSeedUserAddress = preSeedUser.account.address;
 
-                await tokenVestingAsPreSeed.write.claimTokens([proof, Beneficiary.PreSeed]);
+      const proof = getMerkleProof(tree, preSeedUserAddress);
 
-                const hash = await tokenVestingAsPreSeed.write.claimTokens([proof, Beneficiary.PreSeed]);
-                await publicClient.waitForTransactionReceipt({hash});
+      const allocation = BigInt(Beneficiary.PreSeed + 1) * ALLOCATION_AMOUNT;
 
-                // get the withdrawal events in the latest block
-                const withdrawalEvents = await tokenVestingAsPreSeed.getEvents.TokensReleased();
+      await mine(20n * MONTH);
 
-                expect(withdrawalEvents).to.have.lengthOf(1);
-                expect(withdrawalEvents[0].args.beneficiary?.toLowerCase()).to.equal(preSeedUserAddress);
-                expect(withdrawalEvents[0].args.amount).to.equal(10n * 10n ** 18n);
-            });
-        });
-    }
-)
-;
+      const hash = await tokenVestingAsPreSeed.write.claimTokens([
+        proof,
+        Beneficiary.PreSeed,
+        allocation,
+      ]);
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      // get the withdrawal events in the latest block
+      const withdrawalEvents =
+        await tokenVestingAsPreSeed.getEvents.TokensReleased();
+
+      expect(withdrawalEvents).to.have.lengthOf(1);
+      expect(withdrawalEvents[0].args.beneficiary?.toLowerCase()).to.equal(
+        preSeedUserAddress,
+      );
+      expect(withdrawalEvents[0].args.amount).to.equal(allocation);
+    });
+  });
+});
