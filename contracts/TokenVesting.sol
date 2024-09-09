@@ -5,6 +5,11 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {LingoToken} from "./LingoToken.sol";
 
+/**
+ * @author wepee
+ * @title Lingo Token Vesting
+ * @dev Implements the Lingo Token vesting mechanism.
+ */
 contract TokenVesting is Ownable {
     using MerkleProof for bytes32[];
 
@@ -98,21 +103,27 @@ contract TokenVesting is Ownable {
         uint256 cliffDuration = schedule.cliffDuration;
         uint256 vestingDuration = schedule.vestingDuration;
 
-        // If current block is before the cliff period, no tokens are claimable
-        if (block.number < startBlock + cliffDuration) {
+        // If current block is before the TGE, no tokens are claimable
+        if (block.number <= startBlock) {
             return 0;
         }
 
         uint256 elapsedBlocks = block.number - startBlock;
+
         // Calculate initially unlocked tokens based on the percentage
         uint256 vestedAmount = (_totalAllocation * unlockedAtStart) / 100;
 
-        if (elapsedBlocks >= cliffDuration) {
-            uint256 vestingBlocks = elapsedBlocks; // Include cliff duration in vesting
+        // if we are during the vesting period
+        if (elapsedBlocks > cliffDuration) {
+            uint256 elapsedVestingBlocks = elapsedBlocks - cliffDuration;
+
+            uint256 vestingBlocks = vestingDuration - cliffDuration;
+
             // Calculate the vesting ratio with extra precision to avoid rounding errors
-            uint256 vestingRatio = vestingBlocks * 1e18 / (cliffDuration + vestingDuration);
+            uint256 vestingRatio = (((elapsedVestingBlocks * 1e18) / vestingBlocks) * 100) / 1e18;
+
             // Calculate additional vested tokens based on the vesting ratio
-            vestedAmount += ((_totalAllocation * (100 - unlockedAtStart)) * vestingRatio) / (100 * 1e18);
+            vestedAmount += ((_totalAllocation - vestedAmount) * vestingRatio) / 100;
         }
 
         // Ensure vested amount does not exceed the total allocation
