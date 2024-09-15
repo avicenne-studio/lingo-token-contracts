@@ -1,4 +1,5 @@
 import type { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-chai-matchers"
 import "@nomicfoundation/hardhat-toolbox-viem";
 import "@nomiclabs/hardhat-solhint";
 import "hardhat-gas-reporter";
