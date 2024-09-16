@@ -269,7 +269,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
             /// Check if address is already whitelisted
             if (_isAddressWhiteListed[users[i]][isInternal] > 0) continue;
 
-            // checks the other type alresy exists then only assign the same positional value to the given type
+            // checks the other type already exists then only assign the same positional value to the given type
             if (_isAddressWhiteListed[users[i]][!isInternal] > 0) {
                 _isAddressWhiteListed[users[i]][
                     isInternal
