@@ -57,18 +57,21 @@ contract TokenStaking {
     /**
      * @notice Allows a user to stake tokens.
      * @param _amount The amount of tokens to stake.
-     * @param _duration The chosen duration (in blocks) for staking.
+     * @param _durationIndex The chosen duration index for staking.
      * @param _user The address of the user on whose behalf tokens are staked.
      */
-    function stake(uint256 _amount, uint256 _duration, address _user) external {
+    function stake(uint256 _amount, uint256 _durationIndex, address _user) external {
         if (_amount == 0) revert InsufficientAmount();
-        if (!_isValidDuration(_duration)) revert InvalidDuration();
+        if (lockDurations.length < _durationIndex) revert InvalidDuration();
 
-        uint256 unlockBlock = block.number + _duration;
+        uint256 duration = lockDurations[_durationIndex];
+
+        uint256 unlockBlock = block.number + duration;
+
+        lingoToken.transferFrom(msg.sender, address(this), _amount);
         userPositions[_user].push(Position(_amount, unlockBlock));
 
-        emit Staked(_user, _amount, _duration);
-        require(lingoToken.transferFrom(msg.sender, address(this), _amount), "Transfer failed");
+        emit Staked(_user, _amount, duration);
     }
 
     /**
@@ -81,10 +84,11 @@ contract TokenStaking {
         if (block.number < stakeDetails.unlockBlock) revert StakeStillLocked();
 
         uint256 amount = stakeDetails.amount;
+
+        lingoToken.transfer(msg.sender, amount);
         delete userPositions[msg.sender][_stakeIndex];
 
         emit Unstaked(msg.sender, amount);
-        require(lingoToken.transfer(msg.sender, amount), "Transfer failed");
     }
 
     /**
@@ -106,19 +110,5 @@ contract TokenStaking {
      */
     function getStakes(address _user) external view returns (Position[] memory) {
         return userPositions[_user];
-    }
-
-    /**
-     * @dev Checks if a duration is valid.
-     * @param _duration Duration in blocks.
-     * @return True if the duration is valid.
-     */
-    function _isValidDuration(uint256 _duration) private view returns (bool) {
-        for (uint256 i = 0; i < lockDurations.length; i++) {
-            if (lockDurations[i] == _duration) {
-                return true;
-            }
-        }
-        return false;
     }
 }
