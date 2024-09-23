@@ -135,6 +135,33 @@ describe("TokenVesting", function () {
         getAddress(owner.account.address),
       );
     });
+
+    it("Should not deploy if schedule are missing", async function () {
+      const INITIAL_SUPPLY = BigInt(1_000n);
+      const FEES = BigInt(500n);
+  
+      const [
+        owner,
+        treasuryWallet,
+      ] = await hre.viem.getWalletClients();
+  
+      const lingoToken = await hre.viem.deployContract("LingoToken", [
+        INITIAL_SUPPLY,
+        treasuryWallet.account.address,
+        FEES,
+      ]);
+  
+      const LAST_BLOCK = await time.latestBlock();
+
+      const wrongVestingSchedules = VESTING_SCHEDULES.slice(0, -1);
+  
+      await expect(hre.viem.deployContract("TokenVesting", [
+        owner.account.address,
+        lingoToken.address,
+        wrongVestingSchedules,
+        BigInt(LAST_BLOCK) + 1n * MONTH,
+      ])).to.rejected;
+    });
   });
 
   describe("Merkle Tree", function () {

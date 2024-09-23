@@ -31,20 +31,20 @@ contract TokenVesting is Ownable {
 
     struct VestingSchedule {
         uint128 unlockedAtStart;
-        uint128 cliffDuration; // In blocks
-        uint128 vestingDuration; // In blocks
+        uint64 cliffDuration; // In blocks
+        uint64 vestingDuration; // In blocks
     }
 
-    LingoToken public token;
+    LingoToken public immutable token;
+    uint256 public immutable startBlock;
     bytes32 public merkleRoot;
-    uint256 public startBlock;
 
     mapping(BeneficiaryType => VestingSchedule) public vestingSchedules;
 
     mapping(address => uint256) public claimedTokens;
-    mapping(address => uint256) public lastClaimBlock;
 
     // Custom errors
+    error WrongLength();
     error InvalidMerkleProof();
     error NoClaimableTokens();
 
@@ -56,6 +56,8 @@ contract TokenVesting is Ownable {
     ) Ownable(_initialOwner) {
         token = LingoToken(_tokenAddress);
         startBlock = _startBlock;
+
+        if(_vestingSchedules.length != 8) revert WrongLength();
 
         for (uint256 i = 0; i < _vestingSchedules.length; i++) {
             vestingSchedules[BeneficiaryType(i)] = _vestingSchedules[i];
@@ -84,13 +86,12 @@ contract TokenVesting is Ownable {
         bytes32 leaf = keccak256(
             bytes.concat(keccak256(abi.encode(msg.sender, _beneficiaryType, _totalAllocation)))
         );
-        if (!_verifyProof(_merkleProof, leaf)) revert InvalidMerkleProof();
+        if (!_merkleProof.verify(merkleRoot, leaf)) revert InvalidMerkleProof();
 
         uint256 claimableToken = claimableTokenOf(msg.sender, _beneficiaryType, _totalAllocation);
-        if(claimableToken <= 0) revert NoClaimableTokens();
+        if (claimableToken == 0) revert NoClaimableTokens();
 
         claimedTokens[msg.sender] += claimableToken;
-        lastClaimBlock[msg.sender] = block.number;
 
         token.mint(msg.sender, claimableToken);
 
@@ -138,18 +139,5 @@ contract TokenVesting is Ownable {
         uint256 claimable = vestedAmount - claimedTokens[_user];
 
         return claimable;
-    }
-
-    /**
-     * @notice Verifies the Merkle proof
-     * @param _proof The Merkle proof
-     * @param _leaf The leaf node to verify
-     * @return True if the proof is valid, false otherwise
-     */
-    function _verifyProof(
-        bytes32[] calldata _proof,
-        bytes32 _leaf
-    ) private view returns (bool) {
-        return _proof.verify(merkleRoot, _leaf);
     }
 }

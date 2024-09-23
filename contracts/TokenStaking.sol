@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -8,7 +9,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @title Lingo Token Staking
  * @dev Implements the Lingo Token staking mechanism.
  */
-contract TokenStaking {
+contract TokenStaking is Ownable {
     /// @notice Emitted when a user stakes tokens.
     /// @param user Address of the user who staked.
     /// @param amount Amount of tokens staked.
@@ -32,11 +33,10 @@ contract TokenStaking {
     error InsufficientAmount();
 
     struct Position {
-        uint256 amount;
-        uint256 unlockBlock;
+        uint128 amount;
+        uint128 unlockBlock;
     }
 
-    address public owner;
     IERC20 public immutable LINGO_TOKEN;
     uint256[] public lockDurations; // In blocks
     uint256 public lockDurationsCount;
@@ -47,8 +47,7 @@ contract TokenStaking {
      * @dev Sets the initial contract parameters.
      * @param _lingoToken Address of the Lingo ERC20 token.
      */
-    constructor(address _owner, IERC20 _lingoToken, uint256[] memory _lockDurations) {
-        owner = _owner;
+    constructor(address _initialOwner, IERC20 _lingoToken, uint256[] memory _lockDurations) Ownable(_initialOwner) {
         LINGO_TOKEN = _lingoToken;
         lockDurations = _lockDurations;
         lockDurationsCount = _lockDurations.length;
@@ -69,7 +68,7 @@ contract TokenStaking {
         uint256 unlockBlock = block.number + duration;
 
         LINGO_TOKEN.transferFrom(msg.sender, address(this), _amount);
-        userPositions[_user].push(Position(_amount, unlockBlock));
+        userPositions[_user].push(Position(uint128(_amount), uint128(unlockBlock)));
 
         emit Staked(_user, _amount, duration);
     }
@@ -95,8 +94,7 @@ contract TokenStaking {
      * @notice Allows the owner to update the lock durations.
      * @param _durations The new lock durations in blocks.
      */
-    function updateLockDurations(uint256[] calldata _durations) external {
-        if (msg.sender != owner) revert Unauthorized();
+    function updateLockDurations(uint256[] calldata _durations) external onlyOwner {
         lockDurations = _durations;
         lockDurationsCount = _durations.length;
 
