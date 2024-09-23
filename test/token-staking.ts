@@ -6,7 +6,6 @@ import {
 import { expect } from "chai";
 import hre from "hardhat";
 import { getAddress } from "viem";
-import { Interface } from "ethers";
 import { STAKING_SCHEDULES, DAY } from "../constants/staking-schedules";
 
 describe("TokenStaking", function () {

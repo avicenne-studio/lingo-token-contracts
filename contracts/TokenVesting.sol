@@ -13,7 +13,12 @@ import {LingoToken} from "./LingoToken.sol";
 contract TokenVesting is Ownable {
     using MerkleProof for bytes32[];
 
-    enum Beneficiary {
+    /// @notice Emitted when a user claim tokens.
+    /// @param beneficiary Address of the vested user.
+    /// @param amount Amount of tokens staked.
+    event TokensReleased(address beneficiary, uint256 amount);
+
+    enum BeneficiaryType {
         PreSeed,
         KOLRound,
         PrivateSale,
@@ -26,20 +31,22 @@ contract TokenVesting is Ownable {
 
     struct VestingSchedule {
         uint128 unlockedAtStart;
-        uint128 cliffDuration; // in blocks
-        uint128 vestingDuration; // in blocks
+        uint128 cliffDuration; // In blocks
+        uint128 vestingDuration; // In blocks
     }
 
     LingoToken public token;
     bytes32 public merkleRoot;
     uint256 public startBlock;
 
-    mapping(Beneficiary => VestingSchedule) public vestingSchedules;
+    mapping(BeneficiaryType => VestingSchedule) public vestingSchedules;
 
     mapping(address => uint256) public claimedTokens;
     mapping(address => uint256) public lastClaimBlock;
 
-    event TokensReleased(address beneficiary, uint256 amount);
+    // Custom errors
+    error InvalidMerkleProof();
+    error NoClaimableTokens();
 
     constructor(
         address _initialOwner,
@@ -51,7 +58,7 @@ contract TokenVesting is Ownable {
         startBlock = _startBlock;
 
         for (uint256 i = 0; i < _vestingSchedules.length; i++) {
-            vestingSchedules[Beneficiary(i)] = _vestingSchedules[i];
+            vestingSchedules[BeneficiaryType(i)] = _vestingSchedules[i];
         }
     }
 
@@ -71,16 +78,16 @@ contract TokenVesting is Ownable {
      */
     function claimTokens(
         bytes32[] calldata _merkleProof,
-        Beneficiary _beneficiaryType,
+        BeneficiaryType _beneficiaryType,
         uint256 _totalAllocation
     ) external {
         bytes32 leaf = keccak256(
             bytes.concat(keccak256(abi.encode(msg.sender, _beneficiaryType, _totalAllocation)))
         );
-        require(_verifyProof(_merkleProof, leaf), "Invalid Merkle proof");
+        if (!_verifyProof(_merkleProof, leaf)) revert InvalidMerkleProof();
 
         uint256 claimableToken = claimableTokenOf(msg.sender, _beneficiaryType, _totalAllocation);
-        require(claimableToken > 0, "No tokens available for claim");
+        if(claimableToken <= 0) revert NoClaimableTokens();
 
         claimedTokens[msg.sender] += claimableToken;
         lastClaimBlock[msg.sender] = block.number;
@@ -97,7 +104,7 @@ contract TokenVesting is Ownable {
      * @param _totalAllocation The total token allocation for the beneficiary
      * @return The amount of claimable tokens
      */
-    function claimableTokenOf(address _user, Beneficiary _beneficiaryType, uint256 _totalAllocation) public view returns (uint256) {
+    function claimableTokenOf(address _user, BeneficiaryType _beneficiaryType, uint256 _totalAllocation) public view returns (uint256) {
         VestingSchedule memory schedule = vestingSchedules[_beneficiaryType];
         uint256 unlockedAtStart = schedule.unlockedAtStart;
         uint256 cliffDuration = schedule.cliffDuration;

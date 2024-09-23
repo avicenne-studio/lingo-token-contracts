@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @author wepee
@@ -37,8 +37,8 @@ contract TokenStaking {
     }
 
     address public owner;
-    IERC20 public immutable lingoToken;
-    uint256[] public lockDurations; // Durations in blocks
+    IERC20 public immutable LINGO_TOKEN;
+    uint256[] public lockDurations; // In blocks
     uint256 public lockDurationsCount;
 
     mapping(address => Position[]) private userPositions;
@@ -49,7 +49,7 @@ contract TokenStaking {
      */
     constructor(address _owner, IERC20 _lingoToken, uint256[] memory _lockDurations) {
         owner = _owner;
-        lingoToken = _lingoToken;
+        LINGO_TOKEN = _lingoToken;
         lockDurations = _lockDurations;
         lockDurationsCount = _lockDurations.length;
     }
@@ -68,7 +68,7 @@ contract TokenStaking {
 
         uint256 unlockBlock = block.number + duration;
 
-        lingoToken.transferFrom(msg.sender, address(this), _amount);
+        LINGO_TOKEN.transferFrom(msg.sender, address(this), _amount);
         userPositions[_user].push(Position(_amount, unlockBlock));
 
         emit Staked(_user, _amount, duration);
@@ -85,7 +85,7 @@ contract TokenStaking {
 
         uint256 amount = stakeDetails.amount;
 
-        lingoToken.transfer(msg.sender, amount);
+        LINGO_TOKEN.transfer(msg.sender, amount);
         delete userPositions[msg.sender][_stakeIndex];
 
         emit Unstaked(msg.sender, amount);
