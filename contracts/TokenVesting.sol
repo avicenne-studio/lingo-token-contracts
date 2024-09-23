@@ -4,6 +4,7 @@ pragma solidity 0.8.20;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {LingoToken} from "./LingoToken.sol";
+import {TokenStaking} from "./TokenStaking.sol";
 
 /**
  * @author wepee
@@ -36,6 +37,7 @@ contract TokenVesting is Ownable {
     }
 
     LingoToken public immutable token;
+    TokenStaking public immutable staking;
     uint256 public immutable startBlock;
     bytes32 public merkleRoot;
 
@@ -51,10 +53,12 @@ contract TokenVesting is Ownable {
     constructor(
         address _initialOwner,
         address _tokenAddress,
+        address _stakingAddress,
         VestingSchedule[] memory _vestingSchedules,
         uint256 _startBlock
     ) Ownable(_initialOwner) {
         token = LingoToken(_tokenAddress);
+        staking = TokenStaking(_stakingAddress);
         startBlock = _startBlock;
 
         if(_vestingSchedules.length != 8) revert WrongLength();
@@ -83,19 +87,24 @@ contract TokenVesting is Ownable {
         BeneficiaryType _beneficiaryType,
         uint256 _totalAllocation
     ) external {
-        bytes32 leaf = keccak256(
-            bytes.concat(keccak256(abi.encode(msg.sender, _beneficiaryType, _totalAllocation)))
-        );
-        if (!_merkleProof.verify(merkleRoot, leaf)) revert InvalidMerkleProof();
+        _claimTokens(_merkleProof, _beneficiaryType, _totalAllocation, msg.sender);
+    }
 
-        uint256 claimableToken = claimableTokenOf(msg.sender, _beneficiaryType, _totalAllocation);
-        if (claimableToken == 0) revert NoClaimableTokens();
-
-        claimedTokens[msg.sender] += claimableToken;
-
-        token.mint(msg.sender, claimableToken);
-
-        emit TokensReleased(msg.sender, claimableToken);
+    /**
+     * @notice Claims tokens based on the vesting schedule and Merkle proof
+     * @param _merkleProof The Merkle proof to verify the claim
+     * @param _beneficiaryType The type of beneficiary
+     * @param _totalAllocation The total token allocation for the beneficiary
+     */
+    function claimAndStakeTokens(
+        bytes32[] calldata _merkleProof,
+        BeneficiaryType _beneficiaryType,
+        uint256 _totalAllocation,
+        uint256 _durationIndex
+    ) external {
+        uint256 claimedAmount = _claimTokens(_merkleProof, _beneficiaryType, _totalAllocation, address(this));
+        token.approve(address(staking), _totalAllocation);
+        staking.stake(claimedAmount, _durationIndex, msg.sender);
     }
 
     /**
@@ -139,5 +148,35 @@ contract TokenVesting is Ownable {
         uint256 claimable = vestedAmount - claimedTokens[_user];
 
         return claimable;
+    }
+
+    /**
+     * @dev Claims tokens based on the vesting schedule and Merkle proof
+     * @param _merkleProof The Merkle proof to verify the claim
+     * @param _beneficiaryType The type of beneficiary
+     * @param _totalAllocation The total token allocation for the beneficiary
+     * @param _beneficiary The address of the beneficiary
+     */
+    function _claimTokens(
+        bytes32[] calldata _merkleProof,
+        BeneficiaryType _beneficiaryType,
+        uint256 _totalAllocation,
+        address _beneficiary
+    ) private returns (uint256) {
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(msg.sender, _beneficiaryType, _totalAllocation)))
+        );
+        if (!_merkleProof.verify(merkleRoot, leaf)) revert InvalidMerkleProof();
+
+        uint256 claimableToken = claimableTokenOf(msg.sender, _beneficiaryType, _totalAllocation);
+        if (claimableToken == 0) revert NoClaimableTokens();
+
+        claimedTokens[msg.sender] += claimableToken;
+
+        token.mint(_beneficiary, claimableToken);
+
+        emit TokensReleased(msg.sender, claimableToken);
+
+        return claimableToken;
     }
 }

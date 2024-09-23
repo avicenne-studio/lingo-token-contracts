@@ -7,6 +7,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { getAddress } from "viem";
 import { VESTING_SCHEDULES, MONTH } from "../constants/vesting-schedules";
+import { STAKING_SCHEDULES } from "../constants/staking-schedules";
 import { getMerkleProof, getMerkleTree } from "../utils/merkle-tree";
 import { Beneficiary } from "../types/beneficiary";
 
@@ -39,11 +40,18 @@ describe("TokenVesting", function () {
       FEES,
     ]);
 
+    const tokenStaking = await hre.viem.deployContract("TokenStaking", [
+      owner.account.address,
+      lingoToken.address,
+      STAKING_SCHEDULES
+    ]);
+
     const LAST_BLOCK = await time.latestBlock();
 
     const tokenVesting = await hre.viem.deployContract("TokenVesting", [
       owner.account.address,
       lingoToken.address,
+      tokenStaking.address,
       VESTING_SCHEDULES,
       BigInt(LAST_BLOCK) + 1n * MONTH,
     ]);
@@ -56,6 +64,7 @@ describe("TokenVesting", function () {
 
     return {
       lingoToken,
+      tokenStaking,
       tokenVesting,
       TOTAL_SUPPLY,
       owner,
@@ -150,6 +159,12 @@ describe("TokenVesting", function () {
         treasuryWallet.account.address,
         FEES,
       ]);
+
+      const tokenStaking = await hre.viem.deployContract("TokenStaking", [
+        owner.account.address,
+        lingoToken.address,
+        STAKING_SCHEDULES
+      ]);
   
       const LAST_BLOCK = await time.latestBlock();
 
@@ -158,6 +173,7 @@ describe("TokenVesting", function () {
       await expect(hre.viem.deployContract("TokenVesting", [
         owner.account.address,
         lingoToken.address,
+        tokenStaking.address,
         wrongVestingSchedules,
         BigInt(LAST_BLOCK) + 1n * MONTH,
       ])).to.rejected;
@@ -434,6 +450,92 @@ describe("TokenVesting", function () {
 
       expect(claimableToken).to.be.equal(0n);
       expect(preSeedUserBalance).to.be.equal(0n);
+    });
+    
+    it("Should stake 100% of the allocation after vesting when calling claimAndStakeTokens", async function () {
+      const {
+        tokenStaking,
+        tokenVestingAs,
+        tree,
+        preSeedUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsPreSeed = await tokenVestingAs(Beneficiary.PreSeed);
+
+      const preSeedUserAddress = preSeedUser.account.address;
+
+      const proof = getMerkleProof(tree, preSeedUserAddress);
+
+      const { vestingDuration } = VESTING_SCHEDULES[Beneficiary.PreSeed];
+
+      const allocation = BigInt(Beneficiary.PreSeed + 1) * ALLOCATION_AMOUNT;
+
+      await mine(1n * MONTH);
+
+      await mine(vestingDuration);
+      
+      const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
+        preSeedUserAddress,
+        Beneficiary.PreSeed,
+        allocation,
+      ]);
+
+      await tokenVestingAsPreSeed.write.claimAndStakeTokens([
+        proof,
+        Beneficiary.PreSeed,
+        allocation,
+        1n
+      ]);
+
+      const positions = await tokenStaking.read.getStakes([preSeedUserAddress]);
+
+      expect(claimableToken).to.be.equal(allocation);
+
+      expect(positions[0].amount).to.equal(allocation);
+    });
+
+    it("Should stake unlockedAtStart during Cliff when calling claimAndStakeTokens", async function () {
+      const {
+        tokenStaking,
+        tokenVestingAs,
+        tree,
+        preSeedUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsPreSeed = await tokenVestingAs(Beneficiary.PreSeed);
+
+      const preSeedUserAddress = preSeedUser.account.address;
+
+      const proof = getMerkleProof(tree, preSeedUserAddress);
+
+      const { rateUnlockedAtStart, cliffDuration } = VESTING_SCHEDULES[Beneficiary.PreSeed];
+
+      const allocation = BigInt(Beneficiary.PreSeed + 1) * ALLOCATION_AMOUNT;
+
+      await mine(1n * MONTH);
+
+      await mine(cliffDuration / 2n);
+      
+      const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
+        preSeedUserAddress,
+        Beneficiary.PreSeed,
+        allocation,
+      ]);
+
+      await tokenVestingAsPreSeed.write.claimAndStakeTokens([
+        proof,
+        Beneficiary.PreSeed,
+        allocation,
+        1n
+      ]);
+
+      const amountUnlockedAtStart = (rateUnlockedAtStart * allocation) / 100n;
+
+      const positions = await tokenStaking.read.getStakes([preSeedUserAddress]);
+
+      expect(claimableToken).to.be.equal(amountUnlockedAtStart);
+
+      expect(positions[0].amount).to.equal(amountUnlockedAtStart);
     });
   });
 
