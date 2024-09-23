@@ -30,7 +30,7 @@ contract TokenVesting is Ownable {
     }
 
     struct VestingSchedule {
-        uint128 unlockedAtStart;
+        uint128 rateUnlockedAtStart;
         uint64 cliffDuration; // In blocks
         uint64 vestingDuration; // In blocks
     }
@@ -107,7 +107,7 @@ contract TokenVesting is Ownable {
      */
     function claimableTokenOf(address _user, BeneficiaryType _beneficiaryType, uint256 _totalAllocation) public view returns (uint256) {
         VestingSchedule memory schedule = vestingSchedules[_beneficiaryType];
-        uint256 unlockedAtStart = schedule.unlockedAtStart;
+        uint256 rateUnlockedAtStart = schedule.rateUnlockedAtStart;
         uint256 cliffDuration = schedule.cliffDuration;
         uint256 vestingDuration = schedule.vestingDuration;
 
@@ -119,7 +119,7 @@ contract TokenVesting is Ownable {
         uint256 elapsedBlocks = block.number - startBlock;
 
         // Calculate initially unlocked tokens based on the percentage
-        uint256 vestedAmount = (_totalAllocation * unlockedAtStart) / 100;
+        uint256 vestedAmount = (_totalAllocation * rateUnlockedAtStart) / 100;
 
         // if we are during the vesting period
         if (elapsedBlocks > cliffDuration) {

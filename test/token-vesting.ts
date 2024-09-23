@@ -280,7 +280,7 @@ describe("TokenVesting", function () {
 
       const proof = getMerkleProof(tree, preSeedUserAddress);
 
-      const { unlockedAtStart, cliffDuration, vestingDuration } = VESTING_SCHEDULES[Beneficiary.PreSeed];
+      const { rateUnlockedAtStart, cliffDuration, vestingDuration } = VESTING_SCHEDULES[Beneficiary.PreSeed];
 
       const allocation = BigInt(Beneficiary.PreSeed + 1) * ALLOCATION_AMOUNT;
 
@@ -294,7 +294,7 @@ describe("TokenVesting", function () {
         allocation,
       ]);
 
-      const amountUnlockedAtStart = (unlockedAtStart * allocation) / 100n;
+      const amountUnlockedAtStart = (rateUnlockedAtStart * allocation) / 100n;
 
       const expectedClaimableToken = amountUnlockedAtStart + (allocation - amountUnlockedAtStart) / 2n;
 
@@ -326,7 +326,7 @@ describe("TokenVesting", function () {
 
       const proof = getMerkleProof(tree, preSeedUserAddress);
 
-      const { unlockedAtStart, cliffDuration } = VESTING_SCHEDULES[Beneficiary.PreSeed];
+      const { rateUnlockedAtStart, cliffDuration } = VESTING_SCHEDULES[Beneficiary.PreSeed];
 
       const allocation = BigInt(Beneficiary.PreSeed + 1) * ALLOCATION_AMOUNT;
 
@@ -346,7 +346,7 @@ describe("TokenVesting", function () {
         allocation,
       ]);
 
-      const amountUnlockedAtStart = (unlockedAtStart * allocation) / 100n;
+      const amountUnlockedAtStart = (rateUnlockedAtStart * allocation) / 100n;
 
       const preSeedUserBalance = await lingoToken.read.balanceOf([
         preSeedUserAddress,
