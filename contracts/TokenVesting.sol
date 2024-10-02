@@ -43,7 +43,7 @@ contract TokenVesting is Ownable {
 
     mapping(BeneficiaryType => VestingSchedule) public vestingSchedules;
 
-    mapping(address => uint256) public claimedTokens;
+    mapping(address => mapping(BeneficiaryType => uint256)) public claimedTokens;
 
     // Custom errors
     error WrongLength();
@@ -145,7 +145,7 @@ contract TokenVesting is Ownable {
 
         // Ensure vested amount does not exceed the total allocation
         vestedAmount = vestedAmount > _totalAllocation ? _totalAllocation : vestedAmount;
-        uint256 claimable = vestedAmount - claimedTokens[_user];
+        uint256 claimable = vestedAmount - claimedTokens[_user][_beneficiaryType];
 
         return claimable;
     }
@@ -171,7 +171,7 @@ contract TokenVesting is Ownable {
         uint256 claimableToken = claimableTokenOf(msg.sender, _beneficiaryType, _totalAllocation);
         if (claimableToken == 0) revert NoClaimableTokens();
 
-        claimedTokens[msg.sender] += claimableToken;
+        claimedTokens[msg.sender][_beneficiaryType] += claimableToken;
 
         token.mint(_beneficiary, claimableToken);
 
