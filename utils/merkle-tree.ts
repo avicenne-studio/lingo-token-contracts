@@ -12,9 +12,10 @@ export const getMerkleTree = (values: Allocation[]) => {
 export const getMerkleProof = (
   tree: StandardMerkleTree<Allocation>,
   address: `0x${string}`,
+  beneficiary: Beneficiary,
 ) => {
   for (const [i, value] of tree.entries()) {
-    if (value[0] === address) {
+    if (value[0] === address && value[1] === beneficiary) {
       const proof = tree.getProof(i);
       return proof as `0x${string}`[];
     }

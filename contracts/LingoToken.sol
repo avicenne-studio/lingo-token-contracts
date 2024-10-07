@@ -3,9 +3,8 @@
  */
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @author Accubits
@@ -13,8 +12,6 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * @dev Implements a custom ERC20 token.
  */
 contract LingoToken is ERC20Burnable, AccessControl {
-    // Constants
-
     bytes32 public constant MINTER_ROLE = keccak256("MINTER");
 
     // The max supply of token ever available in circulation
@@ -59,6 +56,10 @@ contract LingoToken is ERC20Burnable, AccessControl {
      */
     event TransferFeeUpdated(uint256 fee);
 
+    error ZeroAddress();
+    error MaxSupplyExceeded();
+    error FeesTooHigh();
+
     /**
      * @dev Constructor function to initialize values when the contract is created.
      * @param _initialSupply An unsigned integer representing the initial total supply of tokens for the contract.
@@ -80,7 +81,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
          * Here, we set the treasury wallet address to the specified value.
          * This address will be used to receive the transfer fee from every token transfer.
          */
-        require(_treasuryAddress != address(0), "LINGO: Zero Address");
+        if(_treasuryAddress == address(0)) revert ZeroAddress();
         _treasuryWallet = _treasuryAddress;
 
         /**
@@ -92,7 +93,8 @@ contract LingoToken is ERC20Burnable, AccessControl {
          * and The tokens are minted and assigned to the contract owner's address.
          */
         uint256 intialTokenSupply = _initialSupply * (10 ** decimals());
-        require(intialTokenSupply <= MAX_SUPPLY, "LINGO: cap exceeded");
+        if(intialTokenSupply > MAX_SUPPLY) revert MaxSupplyExceeded();
+
         _mint(_msgSender(), intialTokenSupply);
 
         /**
@@ -120,7 +122,8 @@ contract LingoToken is ERC20Burnable, AccessControl {
         address account
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         /// The treasury wallet address cannot be zero-address.
-        require(account != address(0), "LINGO: Zero Address");
+        if(account == address(0)) revert ZeroAddress();
+
         _treasuryWallet = account;
         /// Emitted when `_treasuryWallet` is updated using this function.
         emit TreasuryWalletUpdated(account);
@@ -144,7 +147,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
      * @param amount The amount of tokens to mint.
      */
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
-        require(totalSupply() + amount <= MAX_SUPPLY, "LINGO: cap exceeded");
+        if(totalSupply() + amount > MAX_SUPPLY) revert MaxSupplyExceeded();
         _mint(to, amount);
     }
 
@@ -202,10 +205,8 @@ contract LingoToken is ERC20Burnable, AccessControl {
      */
     function setTransferFee(uint256 fee) public onlyRole(DEFAULT_ADMIN_ROLE) {
         /// Require the fee to be less than or equal to 5%.
-        require(
-            fee <= FIVE_PERCENT,
-            "LINGO: Transfer Fee should be between 0% - 5%"
-        );
+        if(fee > FIVE_PERCENT) revert FeesTooHigh();
+
         _transferFee = fee;
         /// Emitted when `fee` is updated using this function.
         emit TransferFeeUpdated(fee);
@@ -265,7 +266,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
         bool isInternal,
         address[] memory users
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        for (uint i = 0; i < users.length; i++) {
+        for (uint256 i = 0; i < users.length; i++) {
             /// Check if address is already whitelisted
             if (_isAddressWhiteListed[users[i]][isInternal] > 0) continue;
 
@@ -295,7 +296,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
         address[] memory users
     ) internal returns (bool) {
         bool isRemoved = true;
-        for (uint i = 0; i < users.length; i++) {
+        for (uint256 i = 0; i < users.length; i++) {
             /// Check if the address is present in the whitelist
 
             uint256 addressPositionalValue = _isAddressWhiteListed[users[i]][

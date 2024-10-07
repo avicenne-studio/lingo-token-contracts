@@ -36,9 +36,9 @@ contract TokenVesting is Ownable {
         uint64 vestingDuration; // In blocks
     }
 
-    LingoToken public immutable token;
-    TokenStaking public immutable staking;
-    uint256 public immutable startBlock;
+    LingoToken public immutable TOKEN;
+    TokenStaking public immutable STAKING;
+    uint256 public immutable START_BLOCK;
     bytes32 public merkleRoot;
 
     mapping(BeneficiaryType => VestingSchedule) public vestingSchedules;
@@ -57,9 +57,9 @@ contract TokenVesting is Ownable {
         VestingSchedule[] memory _vestingSchedules,
         uint256 _startBlock
     ) Ownable(_initialOwner) {
-        token = LingoToken(_tokenAddress);
-        staking = TokenStaking(_stakingAddress);
-        startBlock = _startBlock;
+        TOKEN = LingoToken(_tokenAddress);
+        STAKING = TokenStaking(_stakingAddress);
+        START_BLOCK = _startBlock;
 
         if(_vestingSchedules.length != 8) revert WrongLength();
 
@@ -103,8 +103,8 @@ contract TokenVesting is Ownable {
         uint256 _durationIndex
     ) external {
         uint256 claimedAmount = _claimTokens(_merkleProof, _beneficiaryType, _totalAllocation, address(this));
-        token.approve(address(staking), _totalAllocation);
-        staking.stake(claimedAmount, _durationIndex, msg.sender);
+        TOKEN.approve(address(STAKING), _totalAllocation);
+        STAKING.stake(claimedAmount, _durationIndex, msg.sender);
     }
 
     /**
@@ -121,11 +121,11 @@ contract TokenVesting is Ownable {
         uint256 vestingDuration = schedule.vestingDuration;
 
         // If current block is before the TGE, no tokens are claimable
-        if (block.number <= startBlock) {
+        if (block.number <= START_BLOCK) {
             return 0;
         }
 
-        uint256 elapsedBlocks = block.number - startBlock;
+        uint256 elapsedBlocks = block.number - START_BLOCK;
 
         // Calculate initially unlocked tokens based on the percentage
         uint256 vestedAmount = (_totalAllocation * rateUnlockedAtStart) / 100;
@@ -173,7 +173,7 @@ contract TokenVesting is Ownable {
 
         claimedTokens[msg.sender][_beneficiaryType] += claimableToken;
 
-        token.mint(_beneficiary, claimableToken);
+        TOKEN.mint(_beneficiary, claimableToken);
 
         emit TokensReleased(msg.sender, claimableToken);
 
