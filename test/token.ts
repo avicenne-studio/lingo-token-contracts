@@ -18,6 +18,8 @@ describe('LINGO Token', async () => {
   let EXTERNAL_ROLE: any;
   let DECIMALS: bigint;
 
+  const ZERO_ADDRESS = hre.ethers.ZeroAddress as never;
+
   const publicClient = await hre.viem.getPublicClient();
 
   beforeEach(async () => {
@@ -62,7 +64,7 @@ describe('LINGO Token', async () => {
       await expect(
         hre.viem.deployContract("LingoToken", [
           INITIAL_SUPPLY,
-          hre.ethers.ZeroAddress,
+          ZERO_ADDRESS,
           FEE,
         ])).to.be.rejected;
     });
@@ -73,7 +75,7 @@ describe('LINGO Token', async () => {
       expect(await token.read.name()).to.equal("Lingo");
       expect(await token.read.symbol()).to.equal("LINGO");
       expect(await token.read.decimals()).to.equals(Number(DECIMALS));
-      expect(await token.read.getTransferFee()).to.equals(FEE);
+      expect(await token.read.transferFee()).to.equals(FEE);
     });
   });
 
@@ -224,7 +226,7 @@ describe('LINGO Token', async () => {
 
     it('Reverts if user tries to transfer tokens to zero address', async () => {
       const amountToSendBN = 10n * 10n ** DECIMALS;
-      await expect(token.write.transfer([hre.ethers.ZeroAddress, amountToSendBN])).to.be.rejected;
+      await expect(token.write.transfer([ZERO_ADDRESS, amountToSendBN])).to.be.rejected;
     });
   });
 
@@ -363,16 +365,16 @@ describe('LINGO Token', async () => {
 
   describe('Transaction Fee', () => {
     it('Anyone can read current fee percentage', async () => {
-      expect(await token.read.getTransferFee()).to.equals(FEE);
+      expect(await token.read.transferFee()).to.equals(FEE);
     });
 
     it('Owner can update fee percentage', async () => {
-      expect(await token.read.getTransferFee()).to.equals(FEE);
+      expect(await token.read.transferFee()).to.equals(FEE);
 
       const NEW_FEE = 200n;
       await token.write.setTransferFee([NEW_FEE]);
 
-      expect(await token.read.getTransferFee()).to.equals(NEW_FEE);
+      expect(await token.read.transferFee()).to.equals(NEW_FEE);
     });
 
     it('Event emitted when fee percentage updated', async () => {
@@ -447,7 +449,7 @@ describe('LINGO Token', async () => {
     });
 
     it('Reverts when owner tries to update treasury wallet with zero address', async () => {
-      await expect(token.write.setTreasuryWalletAddress([hre.ethers.ZeroAddress])).to.be.rejected;
+      await expect(token.write.setTreasuryWalletAddress([ZERO_ADDRESS])).to.be.rejected;
     });
   });
 });

@@ -12,9 +12,14 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  * @dev Implements a custom ERC20 token.
  */
 contract LingoToken is ERC20Burnable, AccessControl {
+    /// Role definitions
     bytes32 public constant MINTER_ROLE = keccak256("MINTER");
     bytes32 public constant INTERNAL_ROLE = keccak256("INTERNAL_ACCESS");
     bytes32 public constant EXTERNAL_ROLE = keccak256("EXTERNAL_ACCESS");
+
+    /// This is an unsigned integer that represents the transfer fee percentage
+    /// Eg: 5% will be represented as 500
+    uint256 public transferFee;
 
     // The max supply of token ever available in circulation
     uint256 private constant MAX_SUPPLY = 1_000_000_000 * (10 ** 18);
@@ -24,10 +29,6 @@ contract LingoToken is ERC20Burnable, AccessControl {
 
     // Divisor for percentage calculation (10000 represents two decimal places)
     uint256 private constant PERCENTAGE_DIVISOR = 10000;
-
-    /// This is an unsigned integer that represents the transfer fee percentage
-    /// Eg: 5% will be represented as 500
-    uint256 private _transferFee;
 
     /// This is an address variable that will hold the treasury wallet's address
     address private _treasuryWallet;
@@ -127,14 +128,6 @@ contract LingoToken is ERC20Burnable, AccessControl {
     }
 
     /**
-     * @dev Returns the current transfer fee percentage.
-     * @return _transferFee the current transfer fee percentage.
-     */
-    function getTransferFee() external view returns (uint256) {
-        return _transferFee;
-    }
-
-    /**
      * @dev Returns the current treasury wallet address.
      * @return _treasuryWallet The current treasury wallet address.
      * @notice Function can only be called by contract owner.
@@ -152,7 +145,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
         /// Require the fee to be less than or equal to 5%.
         if(fee > FIVE_PERCENT) revert FeesTooHigh();
 
-        _transferFee = fee;
+        transferFee = fee;
         /// Emitted when `fee` is updated using this function.
         emit TransferFeeUpdated(fee);
     }
@@ -169,7 +162,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
         uint256 amount
     ) internal {
         if (_isFeeRequired(from, to)) {
-            uint256 fee = (amount * _transferFee) / PERCENTAGE_DIVISOR;
+            uint256 fee = (amount * transferFee) / PERCENTAGE_DIVISOR;
             _transfer(from, _treasuryWallet, fee);
             _transfer(from, to, amount - fee);
         } else {
