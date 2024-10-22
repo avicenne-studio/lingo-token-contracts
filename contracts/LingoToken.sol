@@ -164,32 +164,46 @@ contract LingoToken is ERC20Burnable, AccessControl {
     }
 
     /**
-     * @dev Transfer tokens from sender to another address.
-     * @param to The address to transfer the tokens to.
+     * @dev Executes a token transfer with or without fees based on the whitelist.
+     * @param from The address sending the tokens.
+     * @param to The address receiving the tokens.
      * @param amount The amount of tokens to transfer.
-     * @return bool True if transfer is successful, false otherwise.
+     */
+    function _executeTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        if (_isFeeRequired(from, to)) {
+            uint256 fee = (amount * _transferFee) / PERCENTAGE_DIVISOR;
+            _transfer(from, _treasuryWallet, fee);
+            _transfer(from, to, amount - fee);
+        } else {
+            _transfer(from, to, amount);
+        }
+    }
+
+    /**
+     * @dev Transfers tokens from the caller to another address.
+     * @param to The recipient's address.
+     * @param amount The amount of tokens to transfer.
+     * @return bool True if the transfer succeeds, false otherwise.
      */
     function transfer(
         address to,
         uint256 amount
     ) public virtual override returns (bool) {
         address sender = _msgSender();
-        if (_isFeeRequired(sender, to)) {
-            uint256 fee = (amount * _transferFee) / PERCENTAGE_DIVISOR;
-            _transfer(sender, _treasuryWallet, fee);
-            _transfer(sender, to, amount - fee);
-        } else {
-            _transfer(sender, to, amount);
-        }
+        _executeTransfer(sender, to, amount);
         return true;
     }
 
     /**
-     * @dev Transfer tokens from one address to another on behalf of a sender.
+     * @dev Transfers tokens from one address to another on behalf of the sender.
      * @param from The address to transfer tokens from.
      * @param to The address to transfer tokens to.
      * @param amount The amount of tokens to transfer.
-     * @return bool True if transfer is successful, false otherwise.
+     * @return bool True if the transfer succeeds, false otherwise.
      */
     function transferFrom(
         address from,
@@ -198,15 +212,10 @@ contract LingoToken is ERC20Burnable, AccessControl {
     ) public virtual override returns (bool) {
         address spender = _msgSender();
         _spendAllowance(from, spender, amount);
-        if (_isFeeRequired(from, to)) {
-            uint256 charge = (amount * _transferFee) / PERCENTAGE_DIVISOR;
-            _transfer(from, _treasuryWallet, charge);
-            _transfer(from, to, amount - charge);
-        } else {
-            _transfer(from, to, amount);
-        }
+        _executeTransfer(from, to, amount);
         return true;
     }
+
 
     /**
      * @dev Adds addresses to the internal access list.
