@@ -13,7 +13,7 @@ describe("TokenStaking", function () {
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
   async function deployFixture() {
-    const INITIAL_SUPPLY = 2000n;
+    const INITIAL_SUPPLY_WEI = 2000n * 10n ** 18n;
     const TOTAL_SUPPLY = BigInt(1_000_000_000n * 10n ** 18n);
     const FEES = BigInt(500n);
 
@@ -26,7 +26,7 @@ describe("TokenStaking", function () {
     ] = await hre.viem.getWalletClients();
 
     const lingoToken = await hre.viem.deployContract("LingoToken", [
-      INITIAL_SUPPLY,
+      INITIAL_SUPPLY_WEI,
       treasuryWallet.account.address,
       FEES,
     ]);
@@ -37,7 +37,6 @@ describe("TokenStaking", function () {
       STAKING_SCHEDULES
     ]);
 
-    const INITIAL_SUPPLY_WEI = INITIAL_SUPPLY * 10n ** 18n;
 
     await lingoToken.write.transfer([userA.account.address, INITIAL_SUPPLY_WEI / 2n]);
     await lingoToken.write.transfer([userB.account.address, INITIAL_SUPPLY_WEI / 2n]);

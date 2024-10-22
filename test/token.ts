@@ -4,9 +4,8 @@ import hre from "hardhat";
 
 import { debitFee } from "../utils/debit-fee";
 
-const { INITIAL_SUPPLY, DECIMALS, FEE } = {
-    DECIMALS: 18n,
-    INITIAL_SUPPLY: 1_000_000_000n / 2n,
+const { INITIAL_SUPPLY, FEE } = {
+    INITIAL_SUPPLY: (1_000_000_000n / 2n) * 10n ** 18n, // 500M = 50% of MAX_SUPPLY
     FEE: 500n, // 5%
 };
 
@@ -17,6 +16,7 @@ describe('LINGO Token', async () => {
   let tokenAs: any;
   let INTERNAL_ROLE: any;
   let EXTERNAL_ROLE: any;
+  let DECIMALS: bigint;
 
   const publicClient = await hre.viem.getPublicClient();
 
@@ -30,6 +30,7 @@ describe('LINGO Token', async () => {
     const MINTER_ROLE = await token.read.MINTER_ROLE();
     INTERNAL_ROLE = await token.read.INTERNAL_ROLE();
     EXTERNAL_ROLE = await token.read.EXTERNAL_ROLE();
+    DECIMALS = BigInt(await token.read.decimals());
     token.write.grantRole([MINTER_ROLE, owner.account.address]);
 
     tokenAs = (account: any) => {
@@ -47,7 +48,7 @@ describe('LINGO Token', async () => {
     });
 
     it('Reverts when trying to deploy with initial supply > MAX_SUPPLY', async () => {
-      const TOO_LARGE_SUPPLY = 10_000_000_000n
+      const TOO_LARGE_SUPPLY = 10_000_000_000n * 10n ** DECIMALS;
 
       await expect(
         hre.viem.deployContract("LingoToken", [
@@ -132,7 +133,7 @@ describe('LINGO Token', async () => {
 
   describe('Transfer', () => {
     it('Initial supply minted and transferred to owner', async () => {
-      expect((await token.read.balanceOf([owner.account.address]))).to.equals(INITIAL_SUPPLY * 10n ** DECIMALS);
+      expect((await token.read.balanceOf([owner.account.address]))).to.equals(INITIAL_SUPPLY);
     });
 
     it('Users can transfer tokens to other users', async () => {

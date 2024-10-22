@@ -74,17 +74,11 @@ contract LingoToken is ERC20Burnable, AccessControl {
         emit TreasuryWalletUpdated(_treasuryAddress);
 
         /**
-         * The total supply of tokens is calculated in the next line
-         * by multiplying the specified value by 10 raised to the power of decimals.
-         * This is because the token has a fixed number of decimal places,
-         * which can be specified by adding a 'decimals' variable to the contract.
          * Checks whether the max supply has been violated with the inital supply
          * and The tokens are minted and assigned to the contract owner's address.
          */
-        uint256 intialTokenSupply = _initialSupply * (10 ** decimals());
-        if(intialTokenSupply > MAX_SUPPLY) revert MaxSupplyExceeded();
-
-        _mint(_msgSender(), intialTokenSupply);
+        if(_initialSupply > MAX_SUPPLY) revert MaxSupplyExceeded();
+        _mint(_msgSender(), _initialSupply);
 
         /**
          * In the next line, we set the transfer fee percentage for the token transfers.
