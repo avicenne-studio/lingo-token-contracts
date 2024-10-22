@@ -31,7 +31,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
 
     /// This is an address variable that will hold the treasury wallet's address
     address private _treasuryWallet;
-    
+
     /**
      * @dev Emitted when the Treasury wallet is updated
      * @param account The new account address that will be set as the treasury wallet
@@ -71,6 +71,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
          */
         if(_treasuryAddress == address(0)) revert ZeroAddress();
         _treasuryWallet = _treasuryAddress;
+        emit TreasuryWalletUpdated(_treasuryAddress);
 
         /**
          * The total supply of tokens is calculated in the next line
