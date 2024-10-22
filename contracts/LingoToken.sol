@@ -173,7 +173,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
         address to,
         uint256 amount
     ) public virtual override returns (bool) {
-        address sender = msg.sender;
+        address sender = _msgSender();
         if (_isFeeRequired(sender, to)) {
             uint256 fee = (amount * _transferFee) / PERCENTAGE_DIVISOR;
             _transfer(sender, _treasuryWallet, fee);
@@ -196,7 +196,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
         address to,
         uint256 amount
     ) public virtual override returns (bool) {
-        address spender = msg.sender;
+        address spender = _msgSender();
         _spendAllowance(from, spender, amount);
         if (_isFeeRequired(from, to)) {
             uint256 charge = (amount * _transferFee) / PERCENTAGE_DIVISOR;
