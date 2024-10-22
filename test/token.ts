@@ -4,28 +4,32 @@ import hre from "hardhat";
 
 import { debitFee } from "../utils/debit-fee";
 
-const { TOTAL_SUPPLY, DECIMALS, FEE, ZERO_ADDRESS } = {
+const { INITIAL_SUPPLY, DECIMALS, FEE } = {
     DECIMALS: 18n,
-    TOTAL_SUPPLY: 1000000000n,
+    INITIAL_SUPPLY: 1_000_000_000n / 2n,
     FEE: 500n, // 5%
-    ZERO_ADDRESS: '0x0000000000000000000000000000000000000000',
 };
 
 describe('LINGO Token', async () => {
   let token: any;
   const [owner, user1, user2, user3, treasuryWallet] = await hre.viem.getWalletClients();
-  const TOTAL_SUPPLY_WEI = TOTAL_SUPPLY * 10n ** DECIMALS;
+
   let tokenAs: any;
+  let INTERNAL_ROLE: any;
+  let EXTERNAL_ROLE: any;
+
   const publicClient = await hre.viem.getPublicClient();
 
   beforeEach(async () => {
     token = await hre.viem.deployContract("LingoToken", [
-        TOTAL_SUPPLY,
-        treasuryWallet.account.address,
-        FEE
+      INITIAL_SUPPLY,
+      treasuryWallet.account.address,
+      FEE
     ]);
 
     const MINTER_ROLE = await token.read.MINTER_ROLE();
+    INTERNAL_ROLE = await token.read.INTERNAL_ROLE();
+    EXTERNAL_ROLE = await token.read.EXTERNAL_ROLE();
     token.write.grantRole([MINTER_ROLE, owner.account.address]);
 
     tokenAs = (account: any) => {
@@ -40,6 +44,26 @@ describe('LINGO Token', async () => {
         const DEFAULT_ADMIN_ROLE = await token.read.DEFAULT_ADMIN_ROLE();
         const result = await token.read.hasRole([DEFAULT_ADMIN_ROLE, owner.account.address]);
         expect(result).to.be.true;
+    });
+
+    it('Reverts when trying to deploy with initial supply > MAX_SUPPLY', async () => {
+      const TOO_LARGE_SUPPLY = 10_000_000_000n
+
+      await expect(
+        hre.viem.deployContract("LingoToken", [
+          TOO_LARGE_SUPPLY,
+          treasuryWallet.account.address,
+          FEE,
+        ])).to.be.rejected;
+    });
+
+    it('Reverts when trying to deploy with zero address as treasury address', async () => {
+      await expect(
+        hre.viem.deployContract("LingoToken", [
+          INITIAL_SUPPLY,
+          hre.ethers.ZeroAddress,
+          FEE,
+        ])).to.be.rejected;
     });
   });
 
@@ -63,9 +87,52 @@ describe('LINGO Token', async () => {
     });
   });
 
+  describe('Access list', () => {
+    it('Admin can add several addresses to the external access list', async () => {
+      const EXTERNAL_ROLE = await token.read.EXTERNAL_ROLE();
+      await token.write.addExternalAccess([[user1.account.address, user2.account.address]]);
+      expect(await token.read.hasRole([EXTERNAL_ROLE, user1.account.address])).to.be.true;
+      expect(await token.read.hasRole([EXTERNAL_ROLE, user2.account.address])).to.be.true;
+    });
+    it('Admin can remove addresses from the external access list', async () => {
+      const EXTERNAL_ROLE = await token.read.EXTERNAL_ROLE();
+      await token.write.addExternalAccess([[user1.account.address, user2.account.address, user3.account.address]]);
+      await token.write.revokeAccess([[user1.account.address, user3.account.address]]);
+      expect(await token.read.hasRole([EXTERNAL_ROLE, user1.account.address])).to.be.false;
+      expect(await token.read.hasRole([EXTERNAL_ROLE, user2.account.address])).to.be.true;
+      expect(await token.read.hasRole([EXTERNAL_ROLE, user3.account.address])).to.be.false;
+    });
+
+    it('User can NOT add or remove addresses from the external access list', async () => {
+      const tokenAsUser1 = await tokenAs(user1);
+      await expect(tokenAsUser1.write.addExternalAccess([[user1.account.address]])).to.be.rejected;
+      await expect(tokenAsUser1.write.revokeAccess([[user1.account.address]])).to.be.rejected;
+    });
+    it('Admin can add several addresses to the internal access list', async () => {
+      const INTERNAL_ROLE = await token.read.INTERNAL_ROLE();
+      await token.write.addInternalAccess([[user1.account.address, user2.account.address]]);
+      expect(await token.read.hasRole([INTERNAL_ROLE, user1.account.address])).to.be.true;
+      expect(await token.read.hasRole([INTERNAL_ROLE, user2.account.address])).to.be.true;
+    });
+    it('Admin can remove addresses from the internal access list', async () => {
+      const INTERNAL_ROLE = await token.read.INTERNAL_ROLE();
+      await token.write.addInternalAccess([[user1.account.address, user2.account.address, user3.account.address]]);
+      await token.write.revokeAccess([[user1.account.address, user3.account.address]]);
+      expect(await token.read.hasRole([INTERNAL_ROLE, user1.account.address])).to.be.false;
+      expect(await token.read.hasRole([INTERNAL_ROLE, user2.account.address])).to.be.true;
+      expect(await token.read.hasRole([INTERNAL_ROLE, user3.account.address])).to.be.false;
+    });
+
+    it('User can NOT add or remove addresses from the internal access list', async () => {
+      const tokenAsUser1 = await tokenAs(user1);
+      await expect(tokenAsUser1.write.addInternalAccess([[user1.account.address]])).to.be.rejected;
+      await expect(tokenAsUser1.write.revokeAccess([[user1.account.address]])).to.be.rejected;
+    });
+  });
+
   describe('Transfer', () => {
     it('Initial supply minted and transferred to owner', async () => {
-      expect((await token.read.balanceOf([owner.account.address]))).to.equals(TOTAL_SUPPLY_WEI);
+      expect((await token.read.balanceOf([owner.account.address]))).to.equals(INITIAL_SUPPLY * 10n ** DECIMALS);
     });
 
     it('Users can transfer tokens to other users', async () => {
@@ -80,6 +147,57 @@ describe('LINGO Token', async () => {
       const expectedBalanceOfUser2 = await debitFee(token, amountToSendBN);
       
       expect(await token.read.balanceOf([user2.account.address])).to.equals(expectedBalanceOfUser2);
+    });
+
+    it('Internal access listed users get no fees when sending and receiving to/from other users', async () => {
+      const amountToSendBN = 100n * 10n ** DECIMALS;
+
+      const internalUser = user1;
+      const tokenAsInternalUser = await tokenAs(internalUser);
+      const randomUser = user2;
+      const tokenAsRandomUser = await tokenAs(randomUser);
+
+      await token.write.grantRole([INTERNAL_ROLE, internalUser.account.address]);
+      await token.write.mint([internalUser.account.address, amountToSendBN]);
+      
+      // No fees when sending
+      await tokenAsInternalUser.write.transfer([randomUser.account.address, amountToSendBN]);
+      expect(await token.read.balanceOf([randomUser.account.address])).to.equals(amountToSendBN);
+      
+      // No fees when sending
+      await tokenAsRandomUser.write.transfer([internalUser.account.address, amountToSendBN]);
+      expect(await token.read.balanceOf([internalUser.account.address])).to.equals(amountToSendBN);
+    });
+
+    it('External acccess listed users get no fees when receiving from other users', async () => {
+      const amountToSendBN = 100n * 10n ** DECIMALS;
+
+      const externalUser = user1;
+      const randomUser = user2;
+      const tokenAsRandomUser = await tokenAs(randomUser);
+
+      await token.write.grantRole([EXTERNAL_ROLE, externalUser.account.address]);
+      await token.write.mint([randomUser.account.address, amountToSendBN]);
+
+      // No fees when sending
+      await tokenAsRandomUser.write.transfer([externalUser.account.address, amountToSendBN]);
+      expect(await token.read.balanceOf([externalUser.account.address])).to.equals(amountToSendBN);
+    });
+
+    it('External acccess listed users get fees when sending to other users', async () => {
+      const amountToSendBN = 100n * 10n ** DECIMALS;
+
+      const externalUser = user1;
+      const tokenAsExternalUser = await tokenAs(externalUser);
+      const randomUser = user2;
+
+      await token.write.grantRole([EXTERNAL_ROLE, externalUser.account.address]);
+      await token.write.mint([externalUser.account.address, amountToSendBN]);
+
+      await tokenAsExternalUser.write.transfer([randomUser.account.address, amountToSendBN]);
+      const expectedBalanceOfRandomUser = await debitFee(token, amountToSendBN);
+      
+      expect(await token.read.balanceOf([randomUser.account.address])).to.equals(expectedBalanceOfRandomUser);
     });
 
     it('Event emitted when tokens are transferred', async () => {
@@ -105,7 +223,7 @@ describe('LINGO Token', async () => {
 
     it('Reverts if user tries to transfer tokens to zero address', async () => {
       const amountToSendBN = 10n * 10n ** DECIMALS;
-      await expect(token.write.transfer([ZERO_ADDRESS, amountToSendBN])).to.be.rejected;
+      await expect(token.write.transfer([hre.ethers.ZeroAddress, amountToSendBN])).to.be.rejected;
     });
   });
 
@@ -182,9 +300,6 @@ describe('LINGO Token', async () => {
 
   describe('Mint', () => {
     it('Minter can mint tokens upto the max supply', async () => {
-      const amountToBurnBN = 1000n * 10n ** DECIMALS;
-      await token.write.burn([amountToBurnBN]);
-
       const amountToMintBN = 500n * 10n ** DECIMALS;
       const ownerBalanceBeforeMintBN = await token.read.balanceOf([owner.account.address]);
 
@@ -193,7 +308,7 @@ describe('LINGO Token', async () => {
     });
 
     it('Reverts if try to mint over max supply', async () => {
-      const amountToMintBN = 500n * 10n ** DECIMALS;
+      const amountToMintBN = 2n * INITIAL_SUPPLY * 10n ** DECIMALS;
       await expect(token.write.mint([owner.account.address, amountToMintBN])).to.be.rejected;
     });
 
@@ -331,7 +446,7 @@ describe('LINGO Token', async () => {
     });
 
     it('Reverts when owner tries to update treasury wallet with zero address', async () => {
-      await expect(token.write.setTreasuryWalletAddress([ZERO_ADDRESS])).to.be.rejected;
+      await expect(token.write.setTreasuryWalletAddress([hre.ethers.ZeroAddress])).to.be.rejected;
     });
   });
 });

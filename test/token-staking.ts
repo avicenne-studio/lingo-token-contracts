@@ -54,7 +54,8 @@ describe("TokenStaking", function () {
     await lingoTokenUserA.write.approve([tokenStaking.address, INITIAL_SUPPLY_WEI / 2n]);
     await lingoTokenUserB.write.approve([tokenStaking.address, INITIAL_SUPPLY_WEI / 2n]);
 
-    await lingoToken.write.addToWhiteList([true, [tokenStaking.address]]);
+    const INTERNAL_ROLE = await lingoToken.read.INTERNAL_ROLE();
+    await lingoToken.write.grantRole([INTERNAL_ROLE, tokenStaking.address]);
 
     const tokenStakingUserA = await hre.viem.getContractAt("TokenStaking", tokenStaking.address, {
         client: { wallet: userA },
