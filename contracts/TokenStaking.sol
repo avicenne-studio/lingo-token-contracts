@@ -10,6 +10,16 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @dev Implements the Lingo Token staking mechanism.
  */
 contract TokenStaking is Ownable {
+    struct Position {
+        uint128 amount;
+        uint128 unlockBlock;
+    }
+
+    IERC20 public immutable LINGO_TOKEN;
+    uint256[] public lockDurations; // In blocks
+    uint256 public lockDurationsCount;
+    mapping(address => Position[]) private userPositions;
+
     /// @notice Emitted when a user stakes tokens.
     /// @param user Address of the user who staked.
     /// @param amount Amount of tokens staked.
@@ -32,22 +42,15 @@ contract TokenStaking is Ownable {
     error StakeStillLocked();
     error InsufficientAmount();
 
-    struct Position {
-        uint128 amount;
-        uint128 unlockBlock;
-    }
-
-    IERC20 public immutable LINGO_TOKEN;
-    uint256[] public lockDurations; // In blocks
-    uint256 public lockDurationsCount;
-
-    mapping(address => Position[]) private userPositions;
-
     /**
      * @dev Sets the initial contract parameters.
      * @param _lingoToken Address of the Lingo ERC20 token.
      */
-    constructor(address _initialOwner, IERC20 _lingoToken, uint256[] memory _lockDurations) Ownable(_initialOwner) {
+    constructor(
+        address _initialOwner,
+        IERC20 _lingoToken,
+        uint256[] memory _lockDurations
+    ) Ownable(_initialOwner) {
         LINGO_TOKEN = _lingoToken;
         lockDurations = _lockDurations;
         lockDurationsCount = _lockDurations.length;
@@ -59,7 +62,11 @@ contract TokenStaking is Ownable {
      * @param _durationIndex The chosen duration index for staking.
      * @param _user The address of the user on whose behalf tokens are staked.
      */
-    function stake(uint256 _amount, uint256 _durationIndex, address _user) external {
+    function stake(
+        uint256 _amount,
+        uint256 _durationIndex,
+        address _user
+    ) external {
         if (_amount == 0) revert InsufficientAmount();
         if (lockDurations.length < _durationIndex) revert InvalidDuration();
 
@@ -68,7 +75,9 @@ contract TokenStaking is Ownable {
         uint256 unlockBlock = block.number + duration;
 
         LINGO_TOKEN.transferFrom(msg.sender, address(this), _amount);
-        userPositions[_user].push(Position(uint128(_amount), uint128(unlockBlock)));
+        userPositions[_user].push(
+            Position(uint128(_amount), uint128(unlockBlock))
+        );
 
         emit Staked(_user, _amount, duration);
     }
@@ -94,7 +103,9 @@ contract TokenStaking is Ownable {
      * @notice Allows the owner to update the lock durations.
      * @param _durations The new lock durations in blocks.
      */
-    function updateLockDurations(uint256[] calldata _durations) external onlyOwner {
+    function updateLockDurations(
+        uint256[] calldata _durations
+    ) external onlyOwner {
         lockDurations = _durations;
         lockDurationsCount = _durations.length;
 
@@ -106,7 +117,9 @@ contract TokenStaking is Ownable {
      * @param _user The address of the user.
      * @return Array of Stake structures.
      */
-    function getStakes(address _user) external view returns (Position[] memory) {
+    function getStakes(
+        address _user
+    ) external view returns (Position[] memory) {
         return userPositions[_user];
     }
 }

@@ -14,11 +14,6 @@ import {TokenStaking} from "./TokenStaking.sol";
 contract TokenVesting is Ownable {
     using MerkleProof for bytes32[];
 
-    /// @notice Emitted when a user claim tokens.
-    /// @param beneficiary Address of the vested user.
-    /// @param amount Amount of tokens staked.
-    event TokensReleased(address beneficiary, uint256 amount);
-
     enum BeneficiaryType {
         PreSeed,
         KOLRound,
@@ -43,7 +38,13 @@ contract TokenVesting is Ownable {
 
     mapping(BeneficiaryType => VestingSchedule) public vestingSchedules;
 
-    mapping(address => mapping(BeneficiaryType => uint256)) public claimedTokens;
+    mapping(address => mapping(BeneficiaryType => uint256))
+        public claimedTokens;
+
+    /// @notice Emitted when a user claim tokens.
+    /// @param beneficiary Address of the vested user.
+    /// @param amount Amount of tokens staked.
+    event TokensReleased(address beneficiary, uint256 amount);
 
     // Custom errors
     error WrongLength();
@@ -61,7 +62,7 @@ contract TokenVesting is Ownable {
         STAKING = TokenStaking(_stakingAddress);
         START_BLOCK = _startBlock;
 
-        if(_vestingSchedules.length != 8) revert WrongLength();
+        if (_vestingSchedules.length != 8) revert WrongLength();
 
         for (uint256 i = 0; i < _vestingSchedules.length; i++) {
             vestingSchedules[BeneficiaryType(i)] = _vestingSchedules[i];
@@ -87,7 +88,12 @@ contract TokenVesting is Ownable {
         BeneficiaryType _beneficiaryType,
         uint256 _totalAllocation
     ) external {
-        _claimTokens(_merkleProof, _beneficiaryType, _totalAllocation, msg.sender);
+        _claimTokens(
+            _merkleProof,
+            _beneficiaryType,
+            _totalAllocation,
+            msg.sender
+        );
     }
 
     /**
@@ -102,7 +108,12 @@ contract TokenVesting is Ownable {
         uint256 _totalAllocation,
         uint256 _durationIndex
     ) external {
-        uint256 claimedAmount = _claimTokens(_merkleProof, _beneficiaryType, _totalAllocation, address(this));
+        uint256 claimedAmount = _claimTokens(
+            _merkleProof,
+            _beneficiaryType,
+            _totalAllocation,
+            address(this)
+        );
         TOKEN.approve(address(STAKING), _totalAllocation);
         STAKING.stake(claimedAmount, _durationIndex, msg.sender);
     }
@@ -114,7 +125,11 @@ contract TokenVesting is Ownable {
      * @param _totalAllocation The total token allocation for the beneficiary
      * @return The amount of claimable tokens
      */
-    function claimableTokenOf(address _user, BeneficiaryType _beneficiaryType, uint256 _totalAllocation) public view returns (uint256) {
+    function claimableTokenOf(
+        address _user,
+        BeneficiaryType _beneficiaryType,
+        uint256 _totalAllocation
+    ) public view returns (uint256) {
         VestingSchedule memory schedule = vestingSchedules[_beneficiaryType];
         uint256 rateUnlockedAtStart = schedule.rateUnlockedAtStart;
         uint256 cliffDuration = schedule.cliffDuration;
@@ -137,15 +152,21 @@ contract TokenVesting is Ownable {
             uint256 vestingBlocks = vestingDuration - cliffDuration;
 
             // Calculate the vesting ratio with extra precision to avoid rounding errors
-            uint256 vestingRatio = (((elapsedVestingBlocks * 1e18) / vestingBlocks) * 100) / 1e18;
+            uint256 vestingRatio = (((elapsedVestingBlocks * 1e18) /
+                vestingBlocks) * 100) / 1e18;
 
             // Calculate additional vested tokens based on the vesting ratio
-            vestedAmount += ((_totalAllocation - vestedAmount) * vestingRatio) / 100;
+            vestedAmount +=
+                ((_totalAllocation - vestedAmount) * vestingRatio) /
+                100;
         }
 
         // Ensure vested amount does not exceed the total allocation
-        vestedAmount = vestedAmount > _totalAllocation ? _totalAllocation : vestedAmount;
-        uint256 claimable = vestedAmount - claimedTokens[_user][_beneficiaryType];
+        vestedAmount = vestedAmount > _totalAllocation
+            ? _totalAllocation
+            : vestedAmount;
+        uint256 claimable = vestedAmount -
+            claimedTokens[_user][_beneficiaryType];
 
         return claimable;
     }
@@ -164,11 +185,19 @@ contract TokenVesting is Ownable {
         address _beneficiary
     ) private returns (uint256) {
         bytes32 leaf = keccak256(
-            bytes.concat(keccak256(abi.encode(msg.sender, _beneficiaryType, _totalAllocation)))
+            bytes.concat(
+                keccak256(
+                    abi.encode(msg.sender, _beneficiaryType, _totalAllocation)
+                )
+            )
         );
         if (!_merkleProof.verify(merkleRoot, leaf)) revert InvalidMerkleProof();
 
-        uint256 claimableToken = claimableTokenOf(msg.sender, _beneficiaryType, _totalAllocation);
+        uint256 claimableToken = claimableTokenOf(
+            msg.sender,
+            _beneficiaryType,
+            _totalAllocation
+        );
         if (claimableToken == 0) revert NoClaimableTokens();
 
         claimedTokens[msg.sender][_beneficiaryType] += claimableToken;

@@ -70,7 +70,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
          * Here, we set the treasury wallet address to the specified value.
          * This address will be used to receive the transfer fee from every token transfer.
          */
-        if(_treasuryAddress == address(0)) revert ZeroAddress();
+        if (_treasuryAddress == address(0)) revert ZeroAddress();
         _treasuryWallet = _treasuryAddress;
         emit TreasuryWalletUpdated(_treasuryAddress);
 
@@ -78,7 +78,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
          * Checks whether the max supply has been violated with the inital supply
          * and The tokens are minted and assigned to the contract owner's address.
          */
-        if(_initialSupply > MAX_SUPPLY) revert MaxSupplyExceeded();
+        if (_initialSupply > MAX_SUPPLY) revert MaxSupplyExceeded();
         _mint(_msgSender(), _initialSupply);
 
         /**
@@ -110,7 +110,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
         address account
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         /// The treasury wallet address cannot be zero-address.
-        if(account == address(0)) revert ZeroAddress();
+        if (account == address(0)) revert ZeroAddress();
 
         _treasuryWallet = account;
         /// Emitted when `_treasuryWallet` is updated using this function.
@@ -123,7 +123,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
      * @param amount The amount of tokens to mint.
      */
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
-        if(totalSupply() + amount > MAX_SUPPLY) revert MaxSupplyExceeded();
+        if (totalSupply() + amount > MAX_SUPPLY) revert MaxSupplyExceeded();
         _mint(to, amount);
     }
 
@@ -143,31 +143,11 @@ contract LingoToken is ERC20Burnable, AccessControl {
      */
     function setTransferFee(uint256 fee) public onlyRole(DEFAULT_ADMIN_ROLE) {
         /// Require the fee to be less than or equal to 5%.
-        if(fee > MAX_FEE) revert FeesTooHigh();
+        if (fee > MAX_FEE) revert FeesTooHigh();
 
         transferFee = fee;
         /// Emitted when `fee` is updated using this function.
         emit TransferFeeUpdated(fee);
-    }
-
-    /**
-     * @dev Executes a token transfer with or without fees based on the whitelist.
-     * @param from The address sending the tokens.
-     * @param to The address receiving the tokens.
-     * @param amount The amount of tokens to transfer.
-     */
-    function _executeTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal {
-        if (_isFeeRequired(from, to)) {
-            uint256 fee = (amount * transferFee) / PERCENTAGE_DIVISOR;
-            _transfer(from, _treasuryWallet, fee);
-            _transfer(from, to, amount - fee);
-        } else {
-            _transfer(from, to, amount);
-        }
     }
 
     /**
@@ -203,12 +183,13 @@ contract LingoToken is ERC20Burnable, AccessControl {
         return true;
     }
 
-
     /**
      * @dev Adds addresses to the internal access list.
      * @param _addr The addresses to be added.
      */
-    function addInternalAccess(address[] memory _addr) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function addInternalAccess(
+        address[] memory _addr
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         for (uint256 i = 0; i < _addr.length; i++) {
             _grantRole(INTERNAL_ROLE, _addr[i]);
         }
@@ -218,7 +199,9 @@ contract LingoToken is ERC20Burnable, AccessControl {
      * @dev Adds addresses to the external access list.
      * @param _addr The addresses to be added.
      */
-    function addExternalAccess(address[] memory _addr) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function addExternalAccess(
+        address[] memory _addr
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         for (uint256 i = 0; i < _addr.length; i++) {
             _grantRole(EXTERNAL_ROLE, _addr[i]);
         }
@@ -228,10 +211,32 @@ contract LingoToken is ERC20Burnable, AccessControl {
      * @dev Remove address form all access lists.
      * @param _addr The addresses to be added.
      */
-    function revokeAccess(address[] memory _addr) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function revokeAccess(
+        address[] memory _addr
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         for (uint256 i = 0; i < _addr.length; i++) {
             _revokeRole(EXTERNAL_ROLE, _addr[i]);
             _revokeRole(INTERNAL_ROLE, _addr[i]);
+        }
+    }
+
+    /**
+     * @dev Executes a token transfer with or without fees based on the whitelist.
+     * @param from The address sending the tokens.
+     * @param to The address receiving the tokens.
+     * @param amount The amount of tokens to transfer.
+     */
+    function _executeTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal {
+        if (_isFeeRequired(from, to)) {
+            uint256 fee = (amount * transferFee) / PERCENTAGE_DIVISOR;
+            _transfer(from, _treasuryWallet, fee);
+            _transfer(from, to, amount - fee);
+        } else {
+            _transfer(from, to, amount);
         }
     }
 
