@@ -1,6 +1,9 @@
 {
   "extends": "solhint:recommended",
   "rules": {
-    "func-visibility": ["warn",{"ignoreConstructors":true}]
+    "func-visibility": ["warn",{"ignoreConstructors":true}],
+    "ordering": "error",
+    "private-vars-leading-underscore": "warn",
+    "not-rely-on-time": "error"
   }
 }

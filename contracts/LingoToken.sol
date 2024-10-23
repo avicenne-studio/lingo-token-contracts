@@ -25,7 +25,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
     uint256 private constant MAX_SUPPLY = 1_000_000_000 * (10 ** 18);
 
     // Representing 5% as 500
-    uint256 private constant FIVE_PERCENT = 500;
+    uint256 private constant MAX_FEE = 500;
 
     // Divisor for percentage calculation (10000 represents two decimal places)
     uint256 private constant PERCENTAGE_DIVISOR = 10000;
@@ -143,7 +143,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
      */
     function setTransferFee(uint256 fee) public onlyRole(DEFAULT_ADMIN_ROLE) {
         /// Require the fee to be less than or equal to 5%.
-        if(fee > FIVE_PERCENT) revert FeesTooHigh();
+        if(fee > MAX_FEE) revert FeesTooHigh();
 
         transferFee = fee;
         /// Emitted when `fee` is updated using this function.
