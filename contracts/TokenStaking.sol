@@ -73,17 +73,18 @@ contract TokenStaking is Ownable {
         if (lockDurations.length < _durationIndex) revert InvalidDuration();
 
         uint256 duration = lockDurations[_durationIndex];
-        
+
         if (duration != _expectedDuration) revert InvalidDuration();
 
         uint256 unlockBlock = block.number + duration;
 
-        LINGO_TOKEN.transferFrom(msg.sender, address(this), _amount);
         userPositions[_user].push(
             Position(uint128(_amount), uint128(unlockBlock))
         );
 
         emit Staked(_user, _amount, duration);
+
+        LINGO_TOKEN.transferFrom(msg.sender, address(this), _amount);
     }
 
     /**
@@ -97,10 +98,11 @@ contract TokenStaking is Ownable {
 
         uint256 amount = stakeDetails.amount;
 
-        LINGO_TOKEN.transfer(msg.sender, amount);
         delete userPositions[msg.sender][_stakeIndex];
 
         emit Unstaked(msg.sender, amount);
+
+        LINGO_TOKEN.transfer(msg.sender, amount);
     }
 
     /**

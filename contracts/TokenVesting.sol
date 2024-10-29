@@ -118,7 +118,12 @@ contract TokenVesting is Ownable {
             address(this)
         );
         TOKEN.approve(address(STAKING), _totalAllocation);
-        STAKING.stake(claimedAmount, _durationIndex, _expectedDuration, msg.sender);
+        STAKING.stake(
+            claimedAmount,
+            _durationIndex,
+            _expectedDuration,
+            msg.sender
+        );
     }
 
     /**
