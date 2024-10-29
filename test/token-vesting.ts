@@ -482,11 +482,15 @@ describe("TokenVesting", function () {
         allocation,
       ]);
 
+      const durationIndex = 1n;
+      const lockDuration = await tokenStaking.read.lockDurations([durationIndex]);
+
       await tokenVestingAsPreSeed.write.claimAndStakeTokens([
         proof,
         Beneficiary.PreSeed,
         allocation,
-        1n
+        durationIndex,
+        lockDuration
       ]);
 
       const positions = await tokenStaking.read.getStakes([preSeedUserAddress]);
@@ -524,11 +528,15 @@ describe("TokenVesting", function () {
         allocation,
       ]);
 
+      const durationIndex = 1n;
+      const lockDuration = await tokenStaking.read.lockDurations([durationIndex]);
+
       await tokenVestingAsPreSeed.write.claimAndStakeTokens([
         proof,
         Beneficiary.PreSeed,
         allocation,
-        1n
+        durationIndex,
+        lockDuration
       ]);
 
       const amountUnlockedAtStart = (rateUnlockedAtStart * allocation) / 100n;
@@ -765,11 +773,15 @@ describe("TokenVesting", function () {
         allocation,
       ]);
 
+      const durationIndex = 1n;
+      const lockDuration = await tokenStaking.read.lockDurations([durationIndex]);
+
       await tokenVestingAsPreSeed.write.claimAndStakeTokens([
         proof,
         Beneficiary.PreSeed,
         allocation,
-        1n
+        durationIndex,
+        lockDuration
       ]);
 
       const positions = await tokenStaking.read.getStakes([preSeedUserAddress]);
@@ -807,11 +819,15 @@ describe("TokenVesting", function () {
         allocation,
       ]);
 
+      const durationIndex = 1n;
+      const lockDuration = await tokenStaking.read.lockDurations([durationIndex]);
+
       await tokenVestingAsPreSeed.write.claimAndStakeTokens([
         proof,
         Beneficiary.PreSeed,
         allocation,
-        1n
+        durationIndex,
+        lockDuration
       ]);
 
       const amountUnlockedAtStart = (rateUnlockedAtStart * allocation) / 100n;

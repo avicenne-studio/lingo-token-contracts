@@ -131,13 +131,15 @@ describe("TokenStaking", function () {
       const {
         userA,
         tokenStakingUserA,
+        lockDurations,
       } = await loadFixture(deployFixture);
 
       const amountToStake = 100n * 10n ** 18n;
       const durationIndex = 1n;
+      const lockDuration = lockDurations[Number(durationIndex)];
       const userAddress = userA.account.address;
 
-      await tokenStakingUserA.write.stake([amountToStake, durationIndex, userAddress]);
+      await tokenStakingUserA.write.stake([amountToStake, durationIndex, lockDuration, userAddress]);
 
       const positions = await tokenStakingUserA.read.getStakes([userAddress]);
 
@@ -159,13 +161,19 @@ describe("TokenStaking", function () {
       const userAddressA = userA.account.address;
       const userAddressB = userB.account.address;
 
-      await tokenStakingUserA.write.stake([amountToStakeA, 0n, userAddressA]);
+      const durationIndexA = 0n;
+      const lockDurationA = lockDurations[Number(durationIndexA)];
+
+      const durationIndexB = 1n;
+      const lockDurationB = lockDurations[Number(durationIndexB)];
+
+      await tokenStakingUserA.write.stake([amountToStakeA, durationIndexA, lockDurationA, userAddressA]);
       const stakeBlock1 = BigInt(await time.latestBlock());
 
       // Just to interfer with userA positions
-      await tokenStakingUserB.write.stake([amountToStakeB, 0n, userAddressB]);
+      await tokenStakingUserB.write.stake([amountToStakeB, durationIndexA, lockDurationA, userAddressB]);
 
-      await tokenStakingUserA.write.stake([amountToStakeA, 1n, userAddressA]);
+      await tokenStakingUserA.write.stake([amountToStakeA, durationIndexB, lockDurationB, userAddressA]);
       const stakeBlock2 = BigInt(await time.latestBlock());
 
       const positions = await tokenStakingUserA.read.getStakes([userAddressA]);
@@ -222,9 +230,12 @@ describe("TokenStaking", function () {
       const amountToStake = 100n * 10n ** 18n;
       const userAddress = userA.account.address;
 
-      await tokenStakingUserA.write.stake([amountToStake, 0n, userAddress]);
+      const durationIndex = 0n;
+      const lockDuration = lockDurations[Number(durationIndex)];
 
-      await expect(tokenStakingUserA.write.unstake([0n])).to.be.rejected;
+      await tokenStakingUserA.write.stake([amountToStake, durationIndex, lockDuration, userAddress]);
+
+      await expect(tokenStakingUserA.write.unstake([durationIndex])).to.be.rejected;
     });
 
     it("Should unstake if the locking period is over", async function () {
@@ -238,18 +249,21 @@ describe("TokenStaking", function () {
       const amountToStake = 100n * 10n ** 18n;
       const userAddress = userA.account.address;
 
-      await tokenStakingUserA.write.stake([amountToStake, 0n, userAddress]);
+      const durationIndex = 0n;
+      const lockDuration = lockDurations[Number(durationIndex)];
+
+      await tokenStakingUserA.write.stake([amountToStake, durationIndex, lockDuration, userAddress]);
       const balanceBefore = await lingoToken.read.balanceOf([userAddress]);
 
-      await mine(lockDurations[0]);
+      await mine(lockDuration);
 
-      await tokenStakingUserA.write.unstake([0n])
+      await tokenStakingUserA.write.unstake([durationIndex])
 
       const balanceAfter = await lingoToken.read.balanceOf([userAddress]);
 
       const positions = await tokenStakingUserA.read.getStakes([userAddress]);
 
-      expect(positions[0].amount).to.equal(0n);
+      expect(positions[0].amount).to.equal(durationIndex);
       expect(balanceAfter - balanceBefore).to.equal(amountToStake);
     });
 
@@ -263,13 +277,17 @@ describe("TokenStaking", function () {
       const amountToStake = 100n * 10n ** 18n;
       const userAddress = userA.account.address;
 
-      await tokenStakingUserA.write.stake([amountToStake, 0n, userAddress]);
+
+      const durationIndex = 0n;
+      const lockDuration = lockDurations[Number(durationIndex)];
+
+      await tokenStakingUserA.write.stake([amountToStake, durationIndex, lockDuration, userAddress]);
 
       await mine(lockDurations[0]);
 
-      await tokenStakingUserA.write.unstake([0n])
+      await tokenStakingUserA.write.unstake([durationIndex])
 
-      await expect(tokenStakingUserA.write.unstake([0n])).to.be.rejected;
+      await expect(tokenStakingUserA.write.unstake([durationIndex])).to.be.rejected;
     });
   });
 
@@ -279,13 +297,15 @@ describe("TokenStaking", function () {
         userA,
         tokenStakingUserA,
         publicClient,
+        lockDurations,
       } = await loadFixture(deployFixture);
 
       const amountToStake = 100n * 10n ** 18n;
       const durationIndex = 0n
+      const lockDuration = lockDurations[Number(durationIndex)];
       const userAddress = userA.account.address;
 
-      const hash = await tokenStakingUserA.write.stake([amountToStake, durationIndex, userAddress]);
+      const hash = await tokenStakingUserA.write.stake([amountToStake, durationIndex, lockDuration, userAddress]);
       await publicClient.waitForTransactionReceipt({ hash });
 
       // get the withdrawal events in the latest block
@@ -306,13 +326,14 @@ describe("TokenStaking", function () {
 
       const amountToStake = 100n * 10n ** 18n;
       const durationIndex = 0n
+      const lockDuration = lockDurations[Number(durationIndex)];
       const userAddress = userA.account.address;
 
-      await tokenStakingUserA.write.stake([amountToStake, durationIndex, userAddress]);
+      await tokenStakingUserA.write.stake([amountToStake, durationIndex, lockDuration, userAddress]);
 
       await mine(lockDurations[Number(durationIndex)]);
 
-      const hash = await tokenStakingUserA.write.unstake([0n]);
+      const hash = await tokenStakingUserA.write.unstake([durationIndex]);
       await publicClient.waitForTransactionReceipt({ hash });
 
       // get the withdrawal events in the latest block

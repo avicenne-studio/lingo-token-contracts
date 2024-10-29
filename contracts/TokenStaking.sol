@@ -60,17 +60,21 @@ contract TokenStaking is Ownable {
      * @notice Allows a user to stake tokens.
      * @param _amount The amount of tokens to stake.
      * @param _durationIndex The chosen duration index for staking.
+     * @param _expectedDuration This ensures that any changes to the lock durations by the admin cannot affect ongoing user staking operations without their knowledge.
      * @param _user The address of the user on whose behalf tokens are staked.
      */
     function stake(
         uint256 _amount,
         uint256 _durationIndex,
+        uint256 _expectedDuration,
         address _user
     ) external {
         if (_amount == 0) revert InsufficientAmount();
         if (lockDurations.length < _durationIndex) revert InvalidDuration();
 
         uint256 duration = lockDurations[_durationIndex];
+        
+        if (duration != _expectedDuration) revert InvalidDuration();
 
         uint256 unlockBlock = block.number + duration;
 

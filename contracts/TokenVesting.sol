@@ -101,12 +101,15 @@ contract TokenVesting is Ownable {
      * @param _merkleProof The Merkle proof to verify the claim
      * @param _beneficiaryType The type of beneficiary
      * @param _totalAllocation The total token allocation for the beneficiary
+     * @param _durationIndex The chosen duration index for staking
+     * @param _expectedDuration This ensures that any changes to the lock durations by the admin cannot affect ongoing user staking operations without their knowledge
      */
     function claimAndStakeTokens(
         bytes32[] calldata _merkleProof,
         BeneficiaryType _beneficiaryType,
         uint256 _totalAllocation,
-        uint256 _durationIndex
+        uint256 _durationIndex,
+        uint256 _expectedDuration
     ) external {
         uint256 claimedAmount = _claimTokens(
             _merkleProof,
@@ -115,7 +118,7 @@ contract TokenVesting is Ownable {
             address(this)
         );
         TOKEN.approve(address(STAKING), _totalAllocation);
-        STAKING.stake(claimedAmount, _durationIndex, msg.sender);
+        STAKING.stake(claimedAmount, _durationIndex, _expectedDuration, msg.sender);
     }
 
     /**
