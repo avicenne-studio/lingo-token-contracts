@@ -98,7 +98,9 @@ contract LingoToken is ERC20Burnable, AccessControl {
         internalAddresses[1] = _treasuryWallet;
         internalAddresses[2] = address(this);
 
-        addInternalAccess(internalAddresses);
+        _grantRole(INTERNAL_ROLE, _msgSender());
+        _grantRole(INTERNAL_ROLE, _treasuryWallet);
+        _grantRole(INTERNAL_ROLE, address(this));
     }
 
     /**
