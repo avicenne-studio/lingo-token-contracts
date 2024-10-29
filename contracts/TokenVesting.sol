@@ -2,6 +2,7 @@
 pragma solidity 0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {LingoToken} from "./LingoToken.sol";
 import {TokenStaking} from "./TokenStaking.sol";
@@ -11,7 +12,7 @@ import {TokenStaking} from "./TokenStaking.sol";
  * @title Lingo Token Vesting
  * @dev Implements the Lingo Token vesting mechanism.
  */
-contract TokenVesting is Ownable {
+contract TokenVesting is Ownable2Step {
     using MerkleProof for bytes32[];
 
     enum BeneficiaryType {

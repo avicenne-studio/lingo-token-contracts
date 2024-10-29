@@ -3,13 +3,14 @@ pragma solidity 0.8.20;
 
 import {ILingoToken} from "./ILingoToken.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
  * @author wepee
  * @title Lingo Token Staking
  * @dev Implements the Lingo Token staking mechanism.
  */
-contract TokenStaking is Ownable {
+contract TokenStaking is Ownable2Step {
     struct Position {
         uint128 amount;
         uint128 unlockBlock;
