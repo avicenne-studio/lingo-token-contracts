@@ -57,8 +57,10 @@ describe("TokenVesting", function () {
     ]);
 
     const MINTER_ROLE = await lingoToken.read.MINTER_ROLE();
+    const INTERNAL_ROLE = await lingoToken.read.INTERNAL_ROLE();
 
     await lingoToken.write.grantRole([MINTER_ROLE, tokenVesting.address]);
+    await lingoToken.write.grantRole([INTERNAL_ROLE, tokenStaking.address]);
 
     const publicClient = await hre.viem.getPublicClient();
 

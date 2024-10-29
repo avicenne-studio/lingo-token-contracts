@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+import {ILingoToken} from "./ILingoToken.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @author wepee
@@ -15,7 +15,7 @@ contract TokenStaking is Ownable {
         uint128 unlockBlock;
     }
 
-    IERC20 public immutable LINGO_TOKEN;
+    ILingoToken public immutable LINGO_TOKEN;
     uint256[] public lockDurations; // In blocks
     uint256 public lockDurationsCount;
     mapping(address => Position[]) private userPositions;
@@ -48,10 +48,10 @@ contract TokenStaking is Ownable {
      */
     constructor(
         address _initialOwner,
-        IERC20 _lingoToken,
+        ILingoToken _lingoToken,
         uint256[] memory _lockDurations
     ) Ownable(_initialOwner) {
-        LINGO_TOKEN = _lingoToken;
+        LINGO_TOKEN = ILingoToken(_lingoToken);
         lockDurations = _lockDurations;
         lockDurationsCount = _lockDurations.length;
     }
@@ -70,6 +70,7 @@ contract TokenStaking is Ownable {
         address _user
     ) external {
         if (_amount == 0) revert InsufficientAmount();
+        if(!LINGO_TOKEN.hasRole(LINGO_TOKEN.INTERNAL_ROLE(), address(this))) revert InsufficientAmount();
         if (lockDurations.length < _durationIndex) revert InvalidDuration();
 
         uint256 duration = lockDurations[_durationIndex];
