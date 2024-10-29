@@ -70,7 +70,8 @@ contract TokenStaking is Ownable {
         address _user
     ) external {
         if (_amount == 0) revert InsufficientAmount();
-        if(!LINGO_TOKEN.hasRole(LINGO_TOKEN.INTERNAL_ROLE(), address(this))) revert InsufficientAmount();
+        if (!LINGO_TOKEN.hasRole(LINGO_TOKEN.INTERNAL_ROLE(), address(this)))
+            revert InsufficientAmount();
         if (lockDurations.length < _durationIndex) revert InvalidDuration();
 
         uint256 duration = lockDurations[_durationIndex];
@@ -99,7 +100,14 @@ contract TokenStaking is Ownable {
 
         uint256 amount = stakeDetails.amount;
 
-        delete userPositions[msg.sender][_stakeIndex];
+        uint256 positionLength = userPositions[msg.sender].length;
+
+        if (_stakeIndex < positionLength - 1) {
+            userPositions[msg.sender][_stakeIndex] = userPositions[msg.sender][
+                positionLength - 1
+            ];
+        }
+        userPositions[msg.sender].pop();
 
         emit Unstaked(msg.sender, amount);
 

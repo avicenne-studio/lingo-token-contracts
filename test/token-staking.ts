@@ -263,7 +263,7 @@ describe("TokenStaking", function () {
 
       const positions = await tokenStakingUserA.read.getStakes([userAddress]);
 
-      expect(positions[0].amount).to.equal(durationIndex);
+      expect(positions).to.be.empty;
       expect(balanceAfter - balanceBefore).to.equal(amountToStake);
     });
 
