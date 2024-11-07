@@ -17,6 +17,7 @@ contract TokenStaking is Ownable2Step {
     }
 
     ILingoToken public immutable LINGO_TOKEN;
+    uint256 public constant MIN_DEPOSIT = 10 ** 18;
     uint256[] public lockDurations; // In blocks
     uint256 public lockDurationsCount;
     mapping(address => Position[]) private userPositions;
@@ -70,7 +71,7 @@ contract TokenStaking is Ownable2Step {
         uint256 _expectedDuration,
         address _user
     ) external {
-        if (_amount == 0) revert InsufficientAmount();
+        if (_amount < MIN_DEPOSIT) revert InsufficientAmount();
         if (!LINGO_TOKEN.hasRole(LINGO_TOKEN.INTERNAL_ROLE(), address(this)))
             revert InsufficientAmount();
         if (lockDurations.length < _durationIndex) revert InvalidDuration();

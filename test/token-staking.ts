@@ -191,22 +191,30 @@ describe("TokenStaking", function () {
       const {
         userA,
         tokenStakingUserA,
+        lockDurations,
       } = await loadFixture(deployFixture);
 
       const userAddress = userA.account.address;
 
-      await expect(tokenStakingUserA.write.stake([0n, 0n, userAddress])).to.be.rejected;
+      const durationIndex = 0n;
+      const lockDuration = lockDurations[Number(durationIndex)];
+
+      await expect(tokenStakingUserA.write.stake([100_000n, durationIndex, lockDuration, userAddress])).to.be.rejected;
     });
 
     it("Should NOT stake if the period is invalid", async function () {
       const {
         userA,
         tokenStakingUserA,
+        lockDurations,
       } = await loadFixture(deployFixture);
 
       const userAddress = userA.account.address;
 
-      await expect(tokenStakingUserA.write.stake([1000n, 4n, userAddress])).to.be.rejected;
+      const durationIndex = 4n;
+      const lockDuration = lockDurations[Number(durationIndex)];
+
+      await expect(tokenStakingUserA.write.stake([1000n, durationIndex, lockDuration, userAddress])).to.be.rejected;
     });
   });
 
