@@ -218,7 +218,6 @@ describe("TokenStaking", function () {
     });
   });
 
-
   describe("Token Unstaking", function () {
     it("Should NOT unstake if the caller has no position", async function () {
       const {

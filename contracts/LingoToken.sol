@@ -24,14 +24,20 @@ contract LingoToken is ERC20Burnable, AccessControl {
     // The max supply of token ever available in circulation
     uint256 private constant MAX_SUPPLY = 1_000_000_000 * (10 ** 18);
 
+    // The max supply of token ever available in circulation
+    uint256 private constant TOTAL_VESTED_SUPPLY = 100_000_000 * (10 ** 18);
+
     // Representing 5% as 500
     uint256 private constant MAX_FEE = 500;
 
     // Divisor for percentage calculation (10000 represents two decimal places)
     uint256 private constant PERCENTAGE_DIVISOR = 10000;
 
+    /// This is an address variable that will hold the vesting contract's address
+    address public vestingContract;
+
     /// This is an address variable that will hold the treasury wallet's address
-    address private _treasuryWallet;
+    address public treasuryWallet;
 
     /**
      * @dev Emitted when the Treasury wallet is updated
@@ -46,6 +52,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
     event TransferFeeUpdated(uint256 fee);
 
     error ZeroAddress();
+    error VestingAlreadySet();
     error MaxSupplyExceeded();
     error FeesTooHigh();
 
@@ -71,7 +78,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
          * This address will be used to receive the transfer fee from every token transfer.
          */
         if (_treasuryAddress == address(0)) revert ZeroAddress();
-        _treasuryWallet = _treasuryAddress;
+        treasuryWallet = _treasuryAddress;
         emit TreasuryWalletUpdated(_treasuryAddress);
 
         /**
@@ -95,11 +102,11 @@ contract LingoToken is ERC20Burnable, AccessControl {
          */
         address[] memory internalAddresses = new address[](3);
         internalAddresses[0] = _msgSender();
-        internalAddresses[1] = _treasuryWallet;
+        internalAddresses[1] = treasuryWallet;
         internalAddresses[2] = address(this);
 
         _grantRole(INTERNAL_ROLE, _msgSender());
-        _grantRole(INTERNAL_ROLE, _treasuryWallet);
+        _grantRole(INTERNAL_ROLE, treasuryWallet);
         _grantRole(INTERNAL_ROLE, address(this));
     }
 
@@ -114,9 +121,27 @@ contract LingoToken is ERC20Burnable, AccessControl {
         /// The treasury wallet address cannot be zero-address.
         if (account == address(0)) revert ZeroAddress();
 
-        _treasuryWallet = account;
+        treasuryWallet = account;
         /// Emitted when `_treasuryWallet` is updated using this function.
         emit TreasuryWalletUpdated(account);
+    }
+
+    /**
+     * @dev Sets the vesting contract address.
+     * @param account The wallet address of the vesting contract.
+     * @notice Function can only be called by contract owner.
+     */
+    function setVestingContractAddress(
+        address account
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        /// The vesting contract address cannot be zero-address.
+        if (account == address(0)) revert ZeroAddress();
+
+        /// The vesting contract address cannot be changed.
+        if (vestingContract != address(0)) revert VestingAlreadySet();
+
+        vestingContract = account;
+        _grantRole(MINTER_ROLE, account);
     }
 
     /**
@@ -125,17 +150,11 @@ contract LingoToken is ERC20Burnable, AccessControl {
      * @param amount The amount of tokens to mint.
      */
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
-        if (totalSupply() + amount > MAX_SUPPLY) revert MaxSupplyExceeded();
+        uint256 mintableSupply = _msgSender() == vestingContract
+            ? MAX_SUPPLY
+            : MAX_SUPPLY - TOTAL_VESTED_SUPPLY;
+        if (totalSupply() + amount > mintableSupply) revert MaxSupplyExceeded();
         _mint(to, amount);
-    }
-
-    /**
-     * @dev Returns the current treasury wallet address.
-     * @return _treasuryWallet The current treasury wallet address.
-     * @notice Function can only be called by contract owner.
-     */
-    function getTreasuryWalletAddress() external view returns (address) {
-        return _treasuryWallet;
     }
 
     /**
@@ -235,7 +254,7 @@ contract LingoToken is ERC20Burnable, AccessControl {
     ) internal {
         if (_isFeeRequired(from, to)) {
             uint256 fee = (amount * transferFee) / PERCENTAGE_DIVISOR;
-            _transfer(from, _treasuryWallet, fee);
+            _transfer(from, treasuryWallet, fee);
             _transfer(from, to, amount - fee);
         } else {
             _transfer(from, to, amount);

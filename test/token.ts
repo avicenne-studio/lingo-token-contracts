@@ -405,12 +405,12 @@ describe('LINGO Token', async () => {
 
   describe('Treasury Wallet', () => {
     it('Owner can read current treasury wallet', async () => {
-      expect((await token.read.getTreasuryWalletAddress()).toLowerCase()).to.equals(treasuryWallet.account.address);
+      expect((await token.read.treasuryWallet()).toLowerCase()).to.equals(treasuryWallet.account.address);
     });
 
     it('Owner can update treasury wallet', async () => {
       await token.write.setTreasuryWalletAddress([user3.account.address]);
-      expect((await token.read.getTreasuryWalletAddress()).toLowerCase()).to.equals(user3.account.address);
+      expect((await token.read.treasuryWallet()).toLowerCase()).to.equals(user3.account.address);
     });
 
     it('Event emitted when treasury wallet updated', async () => {
@@ -450,6 +450,29 @@ describe('LINGO Token', async () => {
 
     it('Reverts when owner tries to update treasury wallet with zero address', async () => {
       await expect(token.write.setTreasuryWalletAddress([ZERO_ADDRESS])).to.be.rejected;
+    });
+  });
+
+  describe('Vesting Contract', () => {
+    it('Owner can set Vesting Contract address', async () => {
+      await token.write.setVestingContractAddress([user3.account.address]);
+      expect((await token.read.vestingContract()).toLowerCase()).to.equals(user3.account.address);
+    });
+
+    it('Reverts when owner tries to update Vesting Contract address', async () => {
+      await token.write.setVestingContractAddress([user3.account.address]);
+      await expect(token.write.setVestingContractAddress([user3.account.address])
+      ).to.be.rejected;
+    });
+
+    it('Reverts when non owner tries to update Vesting Contract address', async () => {
+      await expect(
+        (await tokenAs(user1)).write.setVestingContractAddress([user3.account.address])
+      ).to.be.rejected;
+    });
+
+    it('Reverts when owner tries to update Vesting Contract address with zero address', async () => {
+      await expect(token.write.setVestingContractAddress([ZERO_ADDRESS])).to.be.rejected;
     });
   });
 });
