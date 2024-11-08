@@ -97,7 +97,6 @@ contract TokenStaking is Ownable2Step {
      */
     function unstake(uint256 _stakeIndex) external {
         Position memory stakeDetails = userPositions[msg.sender][_stakeIndex];
-        if (stakeDetails.amount == 0) revert NoActiveStake();
         if (block.number < stakeDetails.unlockBlock) revert StakeStillLocked();
 
         uint256 amount = stakeDetails.amount;
