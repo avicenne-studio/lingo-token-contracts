@@ -38,9 +38,7 @@ contract TokenStaking is Ownable2Step {
     event LockDurationsUpdated(uint256[] durations);
 
     // Custom errors
-    error Unauthorized();
     error InvalidDuration();
-    error NoActiveStake();
     error StakeStillLocked();
     error InsufficientAmount();
 
