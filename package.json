@@ -6,11 +6,13 @@
     "coverage": "hardhat coverage",
     "format": "prettier --write --plugin=prettier-plugin-solidity 'contracts/**/*.sol'",
     "lint": "solhint -f table 'contracts/**/*.sol'",
-    "deploy": "hardhat run scripts/deploy.js"
+    "deploy-all": "hardhat run scripts/deploy-all.ts"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.7",
+    "@nomicfoundation/hardhat-ignition-viem": "^0.15.7",
     "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.11",
     "@nomiclabs/hardhat-solhint": "^3.1.0",
     "hardhat": "^2.22.10",
     "prettier": "^3.3.3",
