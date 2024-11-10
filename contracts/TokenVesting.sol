@@ -48,6 +48,7 @@ contract TokenVesting is Ownable2Step {
     event TokensReleased(address beneficiary, uint256 amount);
 
     // Custom errors
+    error MerkleRootAlreadySet();
     error WrongLength();
     error InvalidMerkleProof();
     error NoClaimableTokens();
@@ -75,6 +76,7 @@ contract TokenVesting is Ownable2Step {
      * @param _merkleRoot The new Merkle root
      */
     function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
+        if(merkleRoot != bytes32(0)) revert MerkleRootAlreadySet();
         merkleRoot = _merkleRoot;
     }
 

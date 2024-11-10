@@ -200,14 +200,29 @@ describe("TokenVesting", function () {
       expect(tree.verify(leaf, proof)).to.be.true;
     });
 
-    it("Should NOT change the Merkle Proof if the call is NOT the owner", async function () {
-      const { tokenVestingAs, tree, preSeedUser } = await loadFixture(
+    it("Should NOT set the Merkle Root if the call is NOT the owner", async function () {
+      const { tree, lingoToken, tokenStaking, ambassadorsUser } = await loadFixture(
         deployAndInitializeFixture,
       );
 
-      const tokenVestingAsPreSeed = await tokenVestingAs(Beneficiary.PreSeed);
+      const LAST_BLOCK = await time.latestBlock();
 
-      await expect(tokenVestingAsPreSeed.write.setMerkleRoot([tree.root as `0x${string}`])).to.be.rejected;
+      const tokenVesting = await hre.viem.deployContract("TokenVesting", [
+        // random user is owner
+        ambassadorsUser.account.address,
+        lingoToken.address,
+        tokenStaking.address,
+        VESTING_SCHEDULES,
+        BigInt(LAST_BLOCK) + 1n * MONTH]);
+
+      await expect(tokenVesting.write.setMerkleRoot([tree.root as `0x${string}`])).to.be.rejected;
+    });
+    it("Should NOT edit the Merkle Root", async function () {
+      const { tokenVesting, tree } = await loadFixture(
+        deployAndInitializeFixture,
+      );
+
+      await expect(tokenVesting.write.setMerkleRoot([tree.root as `0x${string}`])).to.be.rejected;
     });
 
     it("Should NOT validate the Merkle Proof if the Proof is NOT valid", async function () {
