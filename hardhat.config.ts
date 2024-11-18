@@ -32,9 +32,17 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       "base-mainnet": process.env.BASE_SCAN_API_KEY as string,
-      "base-sepolia": process.env.BASE_SEPOLIA_SCAN_API_KEY as string,
+      "base-sepolia": process.env.BASE_SCAN_API_KEY as string,
     },
     customChains: [
+      {
+        network: "base",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org"
+        }
+      },
       {
         network: "base-sepolia",
         chainId: 84532,
@@ -46,7 +54,7 @@ const config: HardhatUserConfig = {
     ]
   },
   sourcify: {
-    enabled: true
+    enabled: false
   }
 };
 

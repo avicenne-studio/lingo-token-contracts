@@ -5,11 +5,17 @@ import VestingModule from "../ignition/modules/deploy-vesting";
 import {FEE, INITIAL_SUPPLY} from "../constants/contracts";
 import {VESTING_SCHEDULES} from "../constants/vesting-schedules";
 import {STAKING_SCHEDULES} from "../constants/staking-schedules";
+import {getMerkleTree, parseCSVToAllocationArray} from "../utils/merkle-tree";
 
 async function main() {
     const TREASURY_WALLET_ADDRESS = process.env.TREASURY_WALLET_ADDRESS || "";
 
     const LAST_BLOCK = await (await hre.viem.getPublicClient()).getBlockNumber();
+
+    const allocations = await parseCSVToAllocationArray('lingo-vesting-test.csv');
+    const merkleTree = getMerkleTree(allocations);
+
+    console.log("Merkle tree created successfully. 🎉", merkleTree.root);
 
     const { token } = await hre.ignition.deploy(TokenModule, {
         parameters: { Token : { treasuryWalletAddress: TREASURY_WALLET_ADDRESS } }
@@ -37,6 +43,10 @@ async function main() {
     await token.write.setVestingContractAddress([vesting.address]);
 
     console.log("Vesting contract address set on token contract ✅");
+
+    await vesting.write.setMerkleRoot([merkleTree.root as `0x${string}`]);
+
+    console.log("Merkle root set on vesting contract ✅");
 
     if(hre.network.name === "hardhat") return;
 
