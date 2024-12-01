@@ -76,7 +76,7 @@ contract TokenVesting is Ownable2Step {
      * @param _merkleRoot The new Merkle root
      */
     function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
-        if(merkleRoot != bytes32(0)) revert MerkleRootAlreadySet();
+        if (merkleRoot != bytes32(0)) revert MerkleRootAlreadySet();
         merkleRoot = _merkleRoot;
     }
 
@@ -162,14 +162,18 @@ contract TokenVesting is Ownable2Step {
 
             uint256 vestingBlocks = vestingDuration - cliffDuration;
 
-            // Calculate the vesting ratio with extra precision to avoid rounding errors
-            uint256 vestingRatio = (((elapsedVestingBlocks * 1e18) /
-                vestingBlocks) * 100) / 1e18;
+            if (vestingBlocks == 0) {
+                vestedAmount = _totalAllocation;
+            } else {
+                // Calculate the vesting ratio with extra precision to avoid rounding errors
+                uint256 vestingRatio = (((elapsedVestingBlocks * 1e18) /
+                    vestingBlocks) * 100) / 1e18;
 
-            // Calculate additional vested tokens based on the vesting ratio
-            vestedAmount +=
-                ((_totalAllocation - vestedAmount) * vestingRatio) /
-                100;
+                // Calculate additional vested tokens based on the vesting ratio
+                vestedAmount +=
+                    ((_totalAllocation - vestedAmount) * vestingRatio) /
+                    100;
+            }
         }
 
         // Ensure vested amount does not exceed the total allocation

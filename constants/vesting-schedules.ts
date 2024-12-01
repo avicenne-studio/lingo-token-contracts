@@ -1,4 +1,5 @@
-export const MONTH = BigInt(195090);
+const BLOCKS_PER_DAY = 43200;
+export const MONTH = BigInt(BLOCKS_PER_DAY * 30);
 
 export const VESTING_SCHEDULES = [
   // PreSeed

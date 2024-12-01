@@ -12,9 +12,6 @@ import { getMerkleProof, getMerkleTree } from "../utils/merkle-tree";
 import { Beneficiary } from "../types/beneficiary";
 
 describe("TokenVesting", function () {
-  // We define a fixture to reuse the same setup in every test.
-  // We use loadFixture to run this setup once, snapshot that state,
-  // and reset Hardhat Network to that snapshot in every test.
   async function deployFixture() {
     const INITIAL_SUPPLY = BigInt(1_000n);
     const TOTAL_SUPPLY = BigInt(1_000_000_000n * 10n ** 18n);
@@ -151,12 +148,12 @@ describe("TokenVesting", function () {
     it("Should not deploy if schedule are missing", async function () {
       const INITIAL_SUPPLY = BigInt(1_000n);
       const FEES = BigInt(500n);
-  
+
       const [
         owner,
         treasuryWallet,
       ] = await hre.viem.getWalletClients();
-  
+
       const lingoToken = await hre.viem.deployContract("LingoToken", [
         INITIAL_SUPPLY,
         treasuryWallet.account.address,
@@ -168,11 +165,11 @@ describe("TokenVesting", function () {
         lingoToken.address,
         STAKING_SCHEDULES
       ]);
-  
+
       const LAST_BLOCK = await time.latestBlock();
 
       const wrongVestingSchedules = VESTING_SCHEDULES.slice(0, -1);
-  
+
       await expect(hre.viem.deployContract("TokenVesting", [
         owner.account.address,
         lingoToken.address,
@@ -274,7 +271,6 @@ describe("TokenVesting", function () {
     it("Should NOT claim token if Merkle Proof is NOT valid", async function () {
       const {
         tokenVestingAs,
-        lingoToken,
         socialFiAirdropUser,
         tree,
         ALLOCATION_AMOUNT,
@@ -299,7 +295,7 @@ describe("TokenVesting", function () {
     });
   });
 
-  describe("Token Relase", function () {
+  describe("Token Release", function () {
     it("Should release TGE + 50% of the allocation after Cliff +50% of (vesting period - cliff)", async function () {
       const {
         lingoToken,
@@ -321,7 +317,7 @@ describe("TokenVesting", function () {
       await mine(1n * MONTH);
 
       await mine(cliffDuration + (vestingDuration - cliffDuration) / 2n);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -367,7 +363,7 @@ describe("TokenVesting", function () {
       await mine(1n * MONTH);
 
       await mine(cliffDuration / 2n);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -411,7 +407,7 @@ describe("TokenVesting", function () {
       await mine(1n * MONTH);
 
       await mine(vestingDuration);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -449,7 +445,7 @@ describe("TokenVesting", function () {
       const allocation = BigInt(Beneficiary.PreSeed + 1) * ALLOCATION_AMOUNT;
 
       await mine(0);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -469,7 +465,7 @@ describe("TokenVesting", function () {
       expect(claimableToken).to.be.equal(0n);
       expect(preSeedUserBalance).to.be.equal(0n);
     });
-    
+
     it("Should stake 100% of the allocation after vesting when calling claimAndStakeTokens", async function () {
       const {
         tokenStaking,
@@ -491,7 +487,7 @@ describe("TokenVesting", function () {
       await mine(1n * MONTH);
 
       await mine(vestingDuration);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -537,7 +533,7 @@ describe("TokenVesting", function () {
       await mine(1n * MONTH);
 
       await mine(cliffDuration / 2n);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -564,8 +560,205 @@ describe("TokenVesting", function () {
       expect(positions[0].amount).to.equal(amountUnlockedAtStart);
     });
   });
-  
-  describe("Token Relase, if the user also a SocialFi participant", function () {
+
+  describe("Token Release with Cliff no linear vesting", function () {
+    it("Should release TGE + 50% of the allocation after Cliff +50% of (vesting period - cliff)", async function () {
+      const {
+        lingoToken,
+        tokenVestingAs,
+        tree,
+        strategicPartnersUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsStrategicPartners = await tokenVestingAs(Beneficiary.StrategicPartners);
+
+      const strategicPartnersUserAddress = strategicPartnersUser.account.address;
+
+      const proof = getMerkleProof(tree, strategicPartnersUserAddress, Beneficiary.StrategicPartners);
+
+      const { cliffDuration } = VESTING_SCHEDULES[Beneficiary.StrategicPartners];
+
+      const allocation = BigInt(Beneficiary.StrategicPartners + 1) * ALLOCATION_AMOUNT;
+
+      await mine(1n * MONTH);
+
+      await mine(cliffDuration);
+
+      const claimableToken = await tokenVestingAsStrategicPartners.read.claimableTokenOf([
+        strategicPartnersUserAddress,
+        Beneficiary.StrategicPartners,
+        allocation,
+      ]);
+
+      await tokenVestingAsStrategicPartners.write.claimTokens([
+        proof,
+        Beneficiary.StrategicPartners,
+        allocation,
+      ]);
+
+      const strategicPartnersUserBalance = await lingoToken.read.balanceOf([
+        strategicPartnersUserAddress,
+      ]);
+
+      expect(claimableToken).to.be.equal(allocation);
+      expect(strategicPartnersUserBalance).to.be.equal(claimableToken);
+    });
+
+    it("Should release unlockedAtStart during Cliff", async function () {
+      const {
+        tokenVestingAs,
+        strategicPartnersUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsStrategicPartners = await tokenVestingAs(Beneficiary.StrategicPartners);
+
+      const strategicPartnersUserAddress = strategicPartnersUser.account.address;
+
+      const { cliffDuration } = VESTING_SCHEDULES[Beneficiary.StrategicPartners];
+
+      const allocation = BigInt(Beneficiary.StrategicPartners + 1) * ALLOCATION_AMOUNT;
+
+      await mine(1n * MONTH);
+
+      await mine(cliffDuration / 2n);
+
+      const claimableToken = await tokenVestingAsStrategicPartners.read.claimableTokenOf([
+        strategicPartnersUserAddress,
+        Beneficiary.StrategicPartners,
+        allocation,
+      ]);
+
+      expect(claimableToken).to.be.equal(0n);
+    });
+
+    it("Should release 100% of the allocation after vesting", async function () {
+      const {
+        lingoToken,
+        tokenVestingAs,
+        tree,
+        strategicPartnersUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsStrategicPartners = await tokenVestingAs(Beneficiary.StrategicPartners);
+
+      const strategicPartnersUserAddress = strategicPartnersUser.account.address;
+
+      const proof = getMerkleProof(tree, strategicPartnersUserAddress, Beneficiary.StrategicPartners);
+
+      const { vestingDuration } = VESTING_SCHEDULES[Beneficiary.StrategicPartners];
+
+      const allocation = BigInt(Beneficiary.StrategicPartners + 1) * ALLOCATION_AMOUNT;
+
+      await mine(1n * MONTH);
+
+      await mine(vestingDuration);
+
+      const claimableToken = await tokenVestingAsStrategicPartners.read.claimableTokenOf([
+        strategicPartnersUserAddress,
+        Beneficiary.StrategicPartners,
+        allocation,
+      ]);
+
+      await tokenVestingAsStrategicPartners.write.claimTokens([
+        proof,
+        Beneficiary.StrategicPartners,
+        allocation,
+      ]);
+
+      const strategicPartnersUserBalance = await lingoToken.read.balanceOf([
+        strategicPartnersUserAddress,
+      ]);
+
+      expect(claimableToken).to.be.equal(allocation);
+      expect(strategicPartnersUserBalance).to.be.equal(claimableToken);
+    });
+
+    it("Should release 0% of the allocation after vesting", async function () {
+      const {
+        lingoToken,
+        tokenVestingAs,
+        tree,
+        strategicPartnersUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsStrategicPartners = await tokenVestingAs(Beneficiary.StrategicPartners);
+
+      const strategicPartnersUserAddress = strategicPartnersUser.account.address;
+
+      const proof = getMerkleProof(tree, strategicPartnersUserAddress, Beneficiary.StrategicPartners);
+
+      const allocation = BigInt(Beneficiary.StrategicPartners + 1) * ALLOCATION_AMOUNT;
+
+      await mine(0);
+
+      const claimableToken = await tokenVestingAsStrategicPartners.read.claimableTokenOf([
+        strategicPartnersUserAddress,
+        Beneficiary.StrategicPartners,
+        allocation,
+      ]);
+
+      await expect(tokenVestingAsStrategicPartners.write.claimTokens([
+        proof,
+        Beneficiary.StrategicPartners,
+        allocation,
+      ])).to.be.rejected;
+
+      const strategicPartnersUserBalance = await lingoToken.read.balanceOf([
+        strategicPartnersUserAddress,
+      ]);
+
+      expect(claimableToken).to.be.equal(0n);
+      expect(strategicPartnersUserBalance).to.be.equal(0n);
+    });
+
+    it("Should stake 100% of the allocation after vesting when calling claimAndStakeTokens", async function () {
+      const {
+        tokenStaking,
+        tokenVestingAs,
+        tree,
+        strategicPartnersUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsStrategicPartners = await tokenVestingAs(Beneficiary.StrategicPartners);
+
+      const strategicPartnersUserAddress = strategicPartnersUser.account.address;
+
+      const proof = getMerkleProof(tree, strategicPartnersUserAddress, Beneficiary.StrategicPartners);
+
+      const { vestingDuration } = VESTING_SCHEDULES[Beneficiary.StrategicPartners];
+
+      const allocation = BigInt(Beneficiary.StrategicPartners + 1) * ALLOCATION_AMOUNT;
+
+      await mine(1n * MONTH);
+
+      await mine(vestingDuration);
+
+      const claimableToken = await tokenVestingAsStrategicPartners.read.claimableTokenOf([
+        strategicPartnersUserAddress,
+        Beneficiary.StrategicPartners,
+        allocation,
+      ]);
+
+      const durationIndex = 1n;
+      const lockDuration = await tokenStaking.read.lockDurations([durationIndex]);
+
+      await tokenVestingAsStrategicPartners.write.claimAndStakeTokens([
+        proof,
+        Beneficiary.StrategicPartners,
+        allocation,
+        durationIndex,
+        lockDuration
+      ]);
+
+      const positions = await tokenStaking.read.getStakes([strategicPartnersUserAddress]);
+
+      expect(claimableToken).to.be.equal(allocation);
+
+      expect(positions[0].amount).to.equal(allocation);
+    });
+  });
+
+  describe("Token Release, if the user also a SocialFi participant", function () {
     it("Should release TGE + 50% of the allocation after Cliff +50% of (vesting period - cliff)", async function () {
       const {
         lingoToken,
@@ -658,7 +851,7 @@ describe("TokenVesting", function () {
       await mine(1n * MONTH);
 
       await mine(cliffDuration / 2n);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -702,7 +895,7 @@ describe("TokenVesting", function () {
       await mine(1n * MONTH);
 
       await mine(vestingDuration);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -740,7 +933,7 @@ describe("TokenVesting", function () {
       const allocation = BigInt(Beneficiary.PreSeed + 1) * ALLOCATION_AMOUNT;
 
       await mine(0);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -760,7 +953,7 @@ describe("TokenVesting", function () {
       expect(claimableToken).to.be.equal(0n);
       expect(preSeedUserBalance).to.be.equal(0n);
     });
-    
+
     it("Should stake 100% of the allocation after vesting when calling claimAndStakeTokens", async function () {
       const {
         tokenStaking,
@@ -782,7 +975,7 @@ describe("TokenVesting", function () {
       await mine(1n * MONTH);
 
       await mine(vestingDuration);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
@@ -828,7 +1021,7 @@ describe("TokenVesting", function () {
       await mine(1n * MONTH);
 
       await mine(cliffDuration / 2n);
-      
+
       const claimableToken = await tokenVestingAsPreSeed.read.claimableTokenOf([
         preSeedUserAddress,
         Beneficiary.PreSeed,
