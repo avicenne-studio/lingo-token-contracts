@@ -8,4 +8,5 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 
 interface ILingoToken is IERC20, IAccessControl {
     function INTERNAL_ROLE() external view returns (bytes32);
+    function MINTER_ROLE() external view returns (bytes32);
 }

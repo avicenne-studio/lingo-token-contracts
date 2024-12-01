@@ -6,7 +6,7 @@ import {
 import { expect } from "chai";
 import hre from "hardhat";
 import { getAddress } from "viem";
-import { STAKING_SCHEDULES, DAY } from "../constants/staking-schedules";
+import { STAKING_SCHEDULES } from "../constants/staking-schedules";
 
 describe("TokenStaking", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -68,8 +68,8 @@ describe("TokenStaking", function () {
 
     const lockDurations = await Promise.all(
       Array(Number(lockDurationsCount))
-        .fill(0n)  
-        .map(async (_, i) => {        
+        .fill(0n)
+        .map(async (_, i) => {
           return tokenStaking.read.lockDurations([BigInt(i)]);
         })
     );
@@ -109,13 +109,13 @@ describe("TokenStaking", function () {
 
     it("Should NOT update Duration if the caller is NOT the owner", async function () {
       const { tokenStakingUserA } = await loadFixture(deployFixture);
-      
+
       await expect(tokenStakingUserA.write.updateLockDurations([STAKING_SCHEDULES])).to.be.rejected;
     });
 
     it("Should update Duration if the caller is the owner", async function () {
       const { tokenStaking } = await loadFixture(deployFixture);
-      
+
       await tokenStaking.write.updateLockDurations([STAKING_SCHEDULES]);
 
       for (let i = 0; i < STAKING_SCHEDULES.length; i++) {
@@ -224,6 +224,22 @@ describe("TokenStaking", function () {
       const lockDuration = lockDurations[Number(durationIndex)];
 
       await expect(tokenStaking.write.stake([amountToStake, durationIndex, lockDuration, userAddress])).to.be.rejected;
+    });
+
+    it("Should NOT stake on behalf if no minter role", async function () {
+      const {
+        tokenStaking,
+        lockDurations,
+        userA,
+      } = await loadFixture(deployFixture);
+
+      const randomUser = userA.account.address;
+
+      const amountToStake = 100_000n * 10n ** 18n;
+      const durationIndex = 0n;
+      const lockDuration = lockDurations[Number(durationIndex)];
+
+      await expect(tokenStaking.write.stake([amountToStake, durationIndex, lockDuration, randomUser])).to.be.rejected;
     });
 
     it("Should NOT stake if the period index is invalid", async function () {

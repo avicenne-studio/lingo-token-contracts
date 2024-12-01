@@ -41,7 +41,7 @@ contract TokenStaking is Ownable2Step {
     error InvalidDuration();
     error StakeStillLocked();
     error InsufficientAmount();
-
+    error UnauthorizedStakingOnBehalf();
     /**
      * @dev Sets the initial contract parameters.
      * @param _lingoToken Address of the Lingo ERC20 token.
@@ -73,6 +73,12 @@ contract TokenStaking is Ownable2Step {
         if (!LINGO_TOKEN.hasRole(LINGO_TOKEN.INTERNAL_ROLE(), address(this)))
             revert InsufficientAmount();
         if (lockDurations.length < _durationIndex) revert InvalidDuration();
+
+        if (msg.sender != _user) {
+            if (!LINGO_TOKEN.hasRole(LINGO_TOKEN.MINTER_ROLE(), msg.sender)) {
+                revert UnauthorizedStakingOnBehalf();
+            }
+        }
 
         uint256 duration = lockDurations[_durationIndex];
 
