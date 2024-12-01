@@ -14,7 +14,7 @@
     "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.11",
     "@nomiclabs/hardhat-solhint": "^3.1.0",
-    "hardhat": "^2.22.10",
+    "hardhat": "^2.22.16",
     "prettier": "^3.3.3",
     "prettier-plugin-solidity": "^1.4.1"
   },
