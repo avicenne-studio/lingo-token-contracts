@@ -10,7 +10,9 @@ import {getMerkleTree, parseCSVToAllocationArray} from "../utils/merkle-tree";
 async function main() {
     const TREASURY_WALLET_ADDRESS = process.env.TREASURY_WALLET_ADDRESS || "";
 
-    const LAST_BLOCK = await (await hre.viem.getPublicClient()).getBlockNumber();
+    const publicClient = await hre.viem.getPublicClient();
+
+    const LAST_BLOCK = await publicClient.getBlockNumber();
 
     const allocations = await parseCSVToAllocationArray('lingo-vesting-test.csv');
     const merkleTree = getMerkleTree(allocations);
@@ -38,13 +40,15 @@ async function main() {
         parameters: { Vesting : { ownerAddress: deployerAddress, tokenAddress: token.address, stakingAddress: staking.address, startBlock: LAST_BLOCK } }
     });
 
-    console.log(`Vesting deployed to: ${vesting.address} 🎉`);
+    let transactionCount = await publicClient.getTransactionCount({ address: deployerAddress })
+    console.log(`Vesting deployed to: ${vesting.address} 🎉`, transactionCount);
 
-    await token.write.setVestingContractAddress([vesting.address]);
 
-    console.log("Vesting contract address set on token contract ✅");
+    await token.write.setVestingContractAddress([vesting.address], { nonce: transactionCount++ });
 
-    await vesting.write.setMerkleRoot([merkleTree.root as `0x${string}`]);
+    console.log("Vesting contract address set on token contract ✅", transactionCount);
+
+    await vesting.write.setMerkleRoot([merkleTree.root as `0x${string}`], { nonce: transactionCount++ });
 
     console.log("Merkle root set on vesting contract ✅");
 
