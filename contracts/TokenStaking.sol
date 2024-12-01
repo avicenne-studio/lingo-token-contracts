@@ -31,7 +31,8 @@ contract TokenStaking is Ownable2Step {
     /// @notice Emitted when a user withdraws staked tokens.
     /// @param user Address of the user who withdrew.
     /// @param amount Amount of tokens withdrawn.
-    event Unstaked(address indexed user, uint256 amount);
+    /// @param unlockBlock Block number at which the tokens were unlocked.
+    event Unstaked(address indexed user, uint256 amount, uint256 unlockBlock);
 
     /// @notice Emitted when the owner updates the lock durations.
     /// @param durations New lock durations in blocks.
@@ -114,7 +115,7 @@ contract TokenStaking is Ownable2Step {
         }
         userPositions[msg.sender].pop();
 
-        emit Unstaked(msg.sender, amount);
+        emit Unstaked(msg.sender, amount, stakeDetails.unlockBlock);
 
         LINGO_TOKEN.transfer(msg.sender, amount);
     }
