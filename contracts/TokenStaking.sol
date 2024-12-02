@@ -41,6 +41,7 @@ contract TokenStaking is Ownable2Step {
     // Custom errors
     error InvalidDuration();
     error StakeStillLocked();
+    error MissingInternalRole();
     error InsufficientAmount();
     error UnauthorizedStakingOnBehalf();
     /**
@@ -72,7 +73,7 @@ contract TokenStaking is Ownable2Step {
     ) external {
         if (_amount < MIN_DEPOSIT) revert InsufficientAmount();
         if (!LINGO_TOKEN.hasRole(LINGO_TOKEN.INTERNAL_ROLE(), address(this)))
-            revert InsufficientAmount();
+            revert MissingInternalRole();
         if (lockDurations.length < _durationIndex) revert InvalidDuration();
 
         if (msg.sender != _user) {
