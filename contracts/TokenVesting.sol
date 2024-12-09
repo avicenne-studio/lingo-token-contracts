@@ -16,13 +16,23 @@ contract TokenVesting is Ownable2Step {
     using MerkleProof for bytes32[];
 
     enum BeneficiaryType {
-        PreSeed,
-        KOLRound,
-        PrivateSale,
-        PublicSale,
-        SocialFiParticipantsAirdrop,
-        StrategicPartners,
-        Ambassadors,
+        KOLRoundA,
+        KOLRoundB,
+        KOLRoundFreeAllocation,
+        LingoIslandsAirdrop,
+        LingoIslandsAirdropFirstClass,
+        PartnersAirdrop,
+        PartnersAirdropFirstClass,
+        PrivateRound3MPostTGEUnlock,
+        PrivateRoundA,
+        PrivateRoundB,
+        PrivateRoundC,
+        PrivateRoundD,
+        PrivateRoundE,
+        PrivateRoundF,
+        PublicPresale,
+        PublicPresaleFirstClass,
+        PublicRound,
         Team
     }
 
@@ -64,7 +74,7 @@ contract TokenVesting is Ownable2Step {
         STAKING = TokenStaking(_stakingAddress);
         START_BLOCK = _startBlock;
 
-        if (_vestingSchedules.length != 8) revert WrongLength();
+        if (_vestingSchedules.length != 18) revert WrongLength();
 
         for (uint256 i = 0; i < _vestingSchedules.length; i++) {
             vestingSchedules[BeneficiaryType(i)] = _vestingSchedules[i];
