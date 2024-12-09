@@ -96,16 +96,10 @@ contract LingoToken is ERC20Burnable, AccessControl {
         setTransferFee(_txnFee);
 
         /**
-         * In the final line, we set up the default access lists.
+         * In the last lines, we set up the default access lists.
          * The access lists ensures that certain addresses can have special permissions within the contract.
          * For instance, they may be able to transfer tokens even if a transfer fee is in place.
          */
-        address[] memory internalAddresses = new address[](3);
-        internalAddresses[0] = _msgSender();
-        internalAddresses[1] = treasuryWallet;
-        internalAddresses[2] = address(this);
-
-        _grantRole(INTERNAL_ROLE, _msgSender());
         _grantRole(INTERNAL_ROLE, treasuryWallet);
         _grantRole(INTERNAL_ROLE, address(this));
     }

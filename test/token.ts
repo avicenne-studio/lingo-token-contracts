@@ -33,7 +33,9 @@ describe('LINGO Token', async () => {
     INTERNAL_ROLE = await token.read.INTERNAL_ROLE();
     EXTERNAL_ROLE = await token.read.EXTERNAL_ROLE();
     DECIMALS = BigInt(await token.read.decimals());
+
     token.write.grantRole([MINTER_ROLE, owner.account.address]);
+    token.write.grantRole([INTERNAL_ROLE, owner.account.address]);
 
     tokenAs = (account: any) => {
         return hre.viem.getContractAt("LingoToken", token.address, {
@@ -140,7 +142,7 @@ describe('LINGO Token', async () => {
 
     it('Users can transfer tokens to other users', async () => {
       const amountToSendBN = 100n * 10n ** DECIMALS;
-      
+
       // admin to user1.account.address
       await token.write.transfer([user1.account.address, amountToSendBN]);
       expect(await token.read.balanceOf([user1.account.address])).to.equals(amountToSendBN);
@@ -148,7 +150,7 @@ describe('LINGO Token', async () => {
       //user1.account.address to user2.account.address
       await (await tokenAs(user1)).write.transfer([user2.account.address, amountToSendBN]);
       const expectedBalanceOfUser2 = await debitFee(token, amountToSendBN);
-      
+
       expect(await token.read.balanceOf([user2.account.address])).to.equals(expectedBalanceOfUser2);
     });
 
@@ -162,11 +164,11 @@ describe('LINGO Token', async () => {
 
       await token.write.grantRole([INTERNAL_ROLE, internalUser.account.address]);
       await token.write.mint([internalUser.account.address, amountToSendBN]);
-      
+
       // No fees when sending
       await tokenAsInternalUser.write.transfer([randomUser.account.address, amountToSendBN]);
       expect(await token.read.balanceOf([randomUser.account.address])).to.equals(amountToSendBN);
-      
+
       // No fees when sending
       await tokenAsRandomUser.write.transfer([internalUser.account.address, amountToSendBN]);
       expect(await token.read.balanceOf([internalUser.account.address])).to.equals(amountToSendBN);
@@ -199,7 +201,7 @@ describe('LINGO Token', async () => {
 
       await tokenAsExternalUser.write.transfer([randomUser.account.address, amountToSendBN]);
       const expectedBalanceOfRandomUser = await debitFee(token, amountToSendBN);
-      
+
       expect(await token.read.balanceOf([randomUser.account.address])).to.equals(expectedBalanceOfRandomUser);
     });
 
@@ -381,7 +383,7 @@ describe('LINGO Token', async () => {
       const NEW_FEE = 200n;
 
       const hash = await token.write.setTransferFee([NEW_FEE]);
-      
+
       await publicClient.waitForTransactionReceipt({ hash });
 
       const transferFeeUpdatedEvents = await token.getEvents.TransferFeeUpdated();
