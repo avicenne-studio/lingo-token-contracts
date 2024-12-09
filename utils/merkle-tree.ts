@@ -41,9 +41,9 @@ export const parseCSVToAllocationArray = (filePath: string): Promise<Allocation[
       let record;
       while ((record = parser.read()) !== null) {
         try {
-          const beneficiaryType = Beneficiary[record['Beneficiary type'] as keyof typeof Beneficiary];
+          const beneficiaryType = Beneficiary[record['Beneficiary'] as keyof typeof Beneficiary];
           if (beneficiaryType === undefined) {
-            throw new Error(`Invalid Beneficiary type: ${record['Beneficiary type']}`);
+            throw new Error(`Invalid Beneficiary type: ${record['Beneficiary']}`);
           }
 
           const address = record['Address'];
