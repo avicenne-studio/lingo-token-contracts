@@ -460,7 +460,7 @@ describe("TokenVesting", function () {
       expect(kolRoundBUserBalance).to.be.equal(claimableToken);
     });
 
-    it("Should release 0% of the allocation after vesting", async function () {
+    it("Should release 0% of the allocation before TGE", async function () {
       const {
         lingoToken,
         tokenVestingAs,
@@ -705,7 +705,7 @@ describe("TokenVesting", function () {
       expect(privateRound3MPostTGEUnlockUserBalance).to.be.equal(claimableToken);
     });
 
-    it("Should release 0% of the allocation after vesting", async function () {
+    it("Should release 0% of the allocation before TGE", async function () {
       const {
         lingoToken,
         tokenVestingAs,
@@ -783,6 +783,131 @@ describe("TokenVesting", function () {
       ]);
 
       const positions = await tokenStaking.read.getStakes([privateRound3MPostTGEUnlockUserAddress]);
+
+      expect(claimableToken).to.be.equal(allocation);
+
+      expect(positions[0].amount).to.equal(allocation);
+    });
+  });
+
+  describe("Token Release without Cliff & linear vesting", function () {
+    it("Should release 100% at TGE", async function () {
+      const {
+        lingoToken,
+        tokenVestingAs,
+        tree,
+        kolRoundFreeAllocationUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsKOLRoundFreeAllocation = await tokenVestingAs(Beneficiary.KOLRoundFreeAllocation);
+
+      const kolRoundFreeAllocationUserAddress = kolRoundFreeAllocationUser.account.address;
+
+      const proof = getMerkleProof(tree, kolRoundFreeAllocationUserAddress, Beneficiary.KOLRoundFreeAllocation);
+
+      const allocation = BigInt(Beneficiary.KOLRoundFreeAllocation + 1) * ALLOCATION_AMOUNT;
+
+      await mine(1n * DAY);
+
+      const claimableToken = await tokenVestingAsKOLRoundFreeAllocation.read.claimableTokenOf([
+        kolRoundFreeAllocationUserAddress,
+        Beneficiary.KOLRoundFreeAllocation,
+        allocation,
+      ]);
+
+      await tokenVestingAsKOLRoundFreeAllocation.write.claimTokens([
+        proof,
+        Beneficiary.KOLRoundFreeAllocation,
+        allocation,
+      ]);
+
+      const privateRound3MPostTGEUnlockUserBalance = await lingoToken.read.balanceOf([
+        kolRoundFreeAllocationUserAddress,
+      ]);
+
+      expect(claimableToken).to.be.equal(allocation);
+      expect(privateRound3MPostTGEUnlockUserBalance).to.be.equal(claimableToken);
+    });
+
+    it("Should release 100% of the allocation after vesting", async function () {
+      const {
+        lingoToken,
+        tokenVestingAs,
+        tree,
+        kolRoundFreeAllocationUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsKOLRoundFreeAllocation = await tokenVestingAs(Beneficiary.KOLRoundFreeAllocation);
+
+      const kolRoundFreeAllocationUserAddress = kolRoundFreeAllocationUser.account.address;
+
+      const proof = getMerkleProof(tree, kolRoundFreeAllocationUserAddress, Beneficiary.KOLRoundFreeAllocation);
+
+      const allocation = BigInt(Beneficiary.KOLRoundFreeAllocation + 1) * ALLOCATION_AMOUNT;
+
+      // 1 block after TGE
+      await mine(1n * DAY + 1n);
+
+      const claimableToken = await tokenVestingAsKOLRoundFreeAllocation.read.claimableTokenOf([
+        kolRoundFreeAllocationUserAddress,
+        Beneficiary.KOLRoundFreeAllocation,
+        allocation,
+      ]);
+
+      await tokenVestingAsKOLRoundFreeAllocation.write.claimTokens([
+        proof,
+        Beneficiary.KOLRoundFreeAllocation,
+        allocation,
+      ]);
+
+      const kolRoundFreeAllocationUserBalance = await lingoToken.read.balanceOf([
+        kolRoundFreeAllocationUserAddress,
+      ]);
+
+      expect(claimableToken).to.be.equal(allocation);
+      expect(kolRoundFreeAllocationUserBalance).to.be.equal(claimableToken);
+    });
+
+    it("Should stake 100% of the allocation after vesting when calling claimAndStakeTokens", async function () {
+      const {
+        tokenStaking,
+        tokenVestingAs,
+        tree,
+        kolRoundFreeAllocationUser,
+        ALLOCATION_AMOUNT,
+      } = await loadFixture(deployAndInitializeFixture);
+      const tokenVestingAsKOLRoundFreeAllocation = await tokenVestingAs(Beneficiary.KOLRoundFreeAllocation);
+
+      const kolRoundFreeAllocationUserAddress = kolRoundFreeAllocationUser.account.address;
+
+      const proof = getMerkleProof(tree, kolRoundFreeAllocationUserAddress, Beneficiary.KOLRoundFreeAllocation);
+
+      const { vestingDuration } = VESTING_SCHEDULES[Beneficiary.KOLRoundFreeAllocation];
+
+      const allocation = BigInt(Beneficiary.KOLRoundFreeAllocation + 1) * ALLOCATION_AMOUNT;
+
+      await mine(1n * DAY);
+
+      await mine(vestingDuration);
+
+      const claimableToken = await tokenVestingAsKOLRoundFreeAllocation.read.claimableTokenOf([
+        kolRoundFreeAllocationUserAddress,
+        Beneficiary.KOLRoundFreeAllocation,
+        allocation,
+      ]);
+
+      const durationIndex = 1n;
+      const lockDuration = await tokenStaking.read.lockDurations([durationIndex]);
+
+      await tokenVestingAsKOLRoundFreeAllocation.write.claimAndStakeTokens([
+        proof,
+        Beneficiary.KOLRoundFreeAllocation,
+        allocation,
+        durationIndex,
+        lockDuration
+      ]);
+
+      const positions = await tokenStaking.read.getStakes([kolRoundFreeAllocationUserAddress]);
 
       expect(claimableToken).to.be.equal(allocation);
 
@@ -927,7 +1052,7 @@ describe("TokenVesting", function () {
 
       await mine(1n * DAY);
 
-      await mine(vestingDuration);
+      await mine(vestingDuration * vestingDuration / 10n);
 
       const claimableToken = await tokenVestingAsKOLRoundB.read.claimableTokenOf([
         kolRoundBUserAddress,
@@ -949,7 +1074,7 @@ describe("TokenVesting", function () {
       expect(kolRoundBUserBalance).to.be.equal(claimableToken);
     });
 
-    it("Should release 0% of the allocation after vesting", async function () {
+    it("Should release 0% of the allocation before TGE", async function () {
       const {
         lingoToken,
         tokenVestingAs,
