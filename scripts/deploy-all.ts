@@ -9,12 +9,15 @@ import {getMerkleTree, parseCSVToAllocationArray} from "../utils/merkle-tree";
 
 async function main() {
     const TREASURY_WALLET_ADDRESS = process.env.TREASURY_WALLET_ADDRESS || "";
+    const MULTISIG_ADDRESS = (hre.network.name == "base-mainnet" ? process.env.BASE_MULTISIG_ADDRESS : process.env.SEPOLIA_BASE_MULTISIG_ADDRESS) as `0x${string}`;
+
+    console.log(`Deploying to network: ${hre.network.name}...`);
 
     const publicClient = await hre.viem.getPublicClient();
 
     const LAST_BLOCK = await publicClient.getBlockNumber();
 
-    const allocations = await parseCSVToAllocationArray('lingo-vesting-test.csv');
+    const allocations = await parseCSVToAllocationArray('lingo-allocations.csv');
     const merkleTree = getMerkleTree(allocations);
 
     console.log("Merkle tree created successfully. 🎉", merkleTree.root);
@@ -33,7 +36,6 @@ async function main() {
     const { staking } = await hre.ignition.deploy(StakingModule, {
         parameters: { Staking : { ownerAddress: deployerAddress, tokenAddress: token.address } }
     });
-
     console.log(`Staking deployed to: ${staking.address} 🎉`);
 
     const { vesting } = await hre.ignition.deploy(VestingModule, {
@@ -41,16 +43,29 @@ async function main() {
     });
 
     let transactionCount = await publicClient.getTransactionCount({ address: deployerAddress })
-    console.log(`Vesting deployed to: ${vesting.address} 🎉`, transactionCount);
+    console.log(`Vesting deployed to: ${vesting.address} 🎉`);
 
 
     await token.write.setVestingContractAddress([vesting.address], { nonce: transactionCount++ });
-
-    console.log("Vesting contract address set on token contract ✅", transactionCount);
+    console.log("Vesting contract address set on token contract ✅");
 
     await vesting.write.setMerkleRoot([merkleTree.root as `0x${string}`], { nonce: transactionCount++ });
-
     console.log("Merkle root set on vesting contract ✅");
+
+    const MINTER_ROLE = await token.read.MINTER_ROLE();
+    const DEFAULT_ADMIN_ROLE = await token.read.DEFAULT_ADMIN_ROLE();
+
+    await token.write.grantRole([MINTER_ROLE, MULTISIG_ADDRESS], { nonce: transactionCount++ });
+    console.log("MINTER_ROLE granted to Multisig ✅");
+
+    await token.write.grantRole([DEFAULT_ADMIN_ROLE, MULTISIG_ADDRESS], { nonce: transactionCount++ });
+    console.log("DEFAULT_ADMIN_ROLE granted to Multisig ✅");
+
+    await token.write.renounceRole([DEFAULT_ADMIN_ROLE, deployerAddress], { nonce: transactionCount++ });
+    console.log("Deployer has renounced DEFAULT_ADMIN_ROLE ✅");
+
+    await staking.write.transferOwnership([MULTISIG_ADDRESS], { nonce: transactionCount++ });
+    console.log("Staking contract ownership transferred to Multisig ✅");
 
     if(hre.network.name === "hardhat") return;
 
